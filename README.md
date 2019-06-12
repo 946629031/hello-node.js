@@ -196,10 +196,14 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 2.支持js、json、node 拓展名，不写时会依次尝试
         - 3.不写路径时
             - 当不写路径时会被认为是 build-in 模块（**自带模块**）（优先）
-            - 或者各级 node_modules 内的第三方模块，先会找当前层级的 node_modules 如果没有，则会向上一层寻找，如果一直到根目录都没找到 该模块 则会报错
+            - 或者各级 node_modules 内的第三方模块
+                - 先会在当前层级的 node_modules 查找，如果没有，则会向上一层寻找，如果一直到根目录都没找到 该模块 则会报错
     - **require 特性**
         - 1.**module 被加载的时候执行，加载后缓存**
             - 加载后缓存 的意思是，只加载一次，第二次就直接从内存中读取了，不会重复加载了
+        - 2.**一旦出现某个模块被循环加载，就只输出已经执行的部分，还未执行的部分不会输出**
+            - 循环加载 是什么意思？
+                - 就是 A 依赖了 B，B 又require了 A，两个互相引用了（在其他很多语言中就会报错）
     - 1.定义一个模块
         ```js
         // 02-cusmod.js
@@ -217,7 +221,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     - 2.执行一个引用模块
         ```js
         // 03-require.js
-        const mod = require('./02-cusmod.js')
+        const mod = require('./02-cusmod')
 
         console.log(mod.testVar)
 
@@ -233,3 +237,66 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 但是这其中，你会发现有一点奇怪的地方，为什么会出现 ```this is a module``` ?
         - 原因：
             - 当我们加载一个模块的时候，它的所有语句都会被执行，所以我们才能拿到里面的变量
+    - 4.验证一下 ```module 被加载的时候执行，加载后缓存```
+        ```js
+        // 04-require_cache.js
+        require('./02_cusmod');
+        require('./02_cusmod');
+        ```
+        - 当执行 ```node 04-require_cache.js``` 后，
+        - 执行结果如下
+        ```js
+        this is a module
+        ```
+        - ```02_cusmod.js``` 里面的 ```console.log('this is a module')``` 只被打印了一次，证明："module 被加载的时候执行，加载后缓存。只加载一次，第二次就直接从内存中读取了，不会重复加载了"
+        - 这种情况也说明，如果你有什么东西不希望被用户看到，你就应该把它 ```console.log()``` 写到 ```function()``` 里面。这样用户在使用时，就不会看到你打印的内容了
+    - 5.验证一下 ```一旦出现某个模块被循环加载，就只输出已经执行的部分，还未执行的部分不会输出```
+        - 为了看出循环引用被部分加载的特性，我们来重复定义一个变量，看他的具体值是多少，就知道他执行到哪里了
+        ```js
+        // 05-modA.js
+        module.exports.test = 'A';
+
+        const modB = require('./05-modB');
+        console.log('modA: ', modB.test);
+
+        module.exports.test = 'AA';
+        ```
+        ```js
+        // 05-modB.js
+        module.exports.test = 'B';
+
+        const modA = require('./05-modA');
+        console.log('modB: ', modA.test);
+
+        module.exports.test = 'BB';
+        ```
+        ```js
+        // 05-main.js
+        const modA = require('./05-modA');
+
+        const modB = require('./05-modB');  // 如果注释掉这一句，不影响下面的输出结果
+        ```
+        - 执行结果
+        ```js
+        $ node js/05-main.js
+        modB:  A
+        modA:  BB
+        ```
+        - 如果把 ```05-main.js``` 改成这样
+        ```js
+        // 05-main.js
+        const modA = require('./05-modA');
+
+        const modB = require('./05-modB');
+
+        console.log(modA.test);
+        console.log(modB.test);
+        ```
+        - 执行结果为
+        ```js
+        $ node js/05-main.js
+        modB:  A
+        modA:  BB
+        AA  // 这里输出 AA 和 BB，说明 modA 和 modB 已经被完全加载了
+        BB
+        ```
