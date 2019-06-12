@@ -302,3 +302,88 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         BB
         ```
         - 在我们写业务代码时，要**尽量避免** 这种循环加载的情况，因为很难理解，容易把人绕晕
+        
+- ### 3-4 环境 & 调试 —— 引用系统内置模块 & 引用第三方模块
+    - 1.引用系统内置模块
+        ```js
+        // 06-fs.js
+        const fs = require('fs')  // 引用系统内置模块不用写路径，直接写模块名即可
+
+        const result = fs.readFile('./06-fs.js', (err, data) => {  // readFile() 是异步操作，当前是没有返回结果的
+            if (err) {  // 如果网络错误 或者 路径错误... 等其他原因 则会报错
+                console.log(err)
+            }else{      // 如果没错误，则能读取到文件
+                console.log(data.toString())    // 将buffer 转换成字符串
+            }
+        })
+
+        console.log(result)
+        ```
+    - 2.引用第三方模块
+        - 引用第三方模块，也不需要写路径
+        - 因为在系统模块中如果没找到该模块，就会自动去 node_modules 里面找
+        - 优先到当前目录下 node_modules 里查找该模块，如果没有则向上一层查找，直到根目录，如果还没有则会抛出异常
+            - 题外话：
+                - 现在的 NPM 做了优化，会把某个模块的依赖，尽量放在同一级目录上
+                - 这样能避免相同的模块被多次安装的问题
+                - 也能提高查找模块的速度，优化性能
+                - 但是，以前的旧版本 NPM 却是一层套一层的...
+        ```js
+        // 07-chalk.js
+        const chalk = require('chalk');     // 引用第三方模块，也不需要写路径
+
+        console.log(chalk.red('This is a red text'))
+        ```
+        - 在使用第三方模块时，需要安装该模块 ```npm i chalk```
+
+- ### 3-5 环境 & 调试 —— module.exports 与 exports 的区别
+    - 我们知道，一个模块中执行的时候，NodeJS 会帮我们包裹一个函数
+        ```js
+        // 08-exports.js
+        (
+            function(exports, require, module, __filename, __dirname) {
+
+            }
+        )
+        ```
+    - 其中 exports 是 module.exports 的快捷方式
+        - 我们来验证一下
+            ```js
+            // 08-exps.js
+            exports.test = 100;
+            ```
+            ```js
+            // 08-main.js
+            const mod = require('./08-exps.js')
+
+            console.log(mod.test)       // 这里能被打印出 100
+            ```
+        - 能被打印出 100 ，则证明 **exports 相当于 module.exports**
+    - **注意**：
+        - 既然，exports 是 module.exports 的快捷方式
+        - 那么，我们就不能改变 exports 的变量指向，如
+        ```js
+        // 08-exps.js   我们把内容修改成这样之后
+        exports = {
+            a: 1,
+            b: 2,
+            test: 100
+        }
+        ```
+        - 这种情况下，exports 的指向被改变，就不再指向 module.exports 了
+        - 当我们再执行 ```node 08-exps.js``` 时，会输出 ```undefined```
+    - **但是**：
+        - 如果我们这样赋值
+        ```js
+        // 08-exps.js   我们把内容修改成这样之后
+        module.exports = {
+            a: 1,
+            b: 2,
+            test: 100
+        }
+        ```
+        - 当我们再执行 ```node 08-exps.js``` 时，就能输出 ```100```，是可以拿到 test 的值的
+    - **总结**：
+        - 在 CommonJS 中，模块对外的输出 永远都是 ```module.exports```
+
+[3-6 0:00]()
