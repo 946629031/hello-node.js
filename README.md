@@ -163,6 +163,14 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 安装node [node官网](https://nodejs.org)
         - **CommonJS** - 模块规范
             - nodejs 的模块管理规范
+            - 其他模块规范还有：AMD、CMD、CommonJS
+            - **CommonJS 规定**
+                - 1.**每个文件是一个模块，有自己的作用域**
+                    - 也可以反过来说，一个文件就是一个模块，一个文件内也只能有一个模块，不允许在一个文件内定义两个模块
+                    - **作用域** 
+                        - 虽然我们写代码的时候，已经把语句、变量 都写在最外面了，但是在 node 执行js文件的时候，都会给每个模块自动包裹一个函数，所以模块内的变量 就会**自动变成了 局部变量**
+                - 2.**在模块内部 moudule 变量代表模块本身**
+                - 3.**module.export 属性代表模块对外接口**
         - **global** - 全局对象
             - 在以前，浏览器上有 BOM,DOM,其中 window 就是全局对象，alert 和 console 可以不做任何的引用就直接使用，是因为它直接挂载到了全局对象上
             - 但是，由于 NodeJS 是在服务器上跑的，所以它没有 BOM,DOM ，只有 ECMA 的全局对象，而没有 window 全局对象，取而代之的是 global 全局对象 
@@ -177,8 +185,51 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 1.cd 到该js脚本的目录下
             - 2.执行 node+文件名 ```node run.js```
     - #### node 调试方法
-        - ```node --inspect --inspect-brk 01-run.js```
-        - --inspect 开启调试模式
-        - --inspect-brk 在第一行处打断点
+        - 执行命令 ```node --inspect --inspect-brk 01-run.js```
+            - ```--inspect``` 开启调试模式
+            - ```--inspect-brk``` 在第一行处打断点
+        - 然后在 chrome 浏览器，打开控制台，会控制台左侧看到一个绿色的 node图标，点击图标，即可进入node调试界面
 
-6:00
+- ### 3-2 环境 & 调试 ——CommonJS2
+    - **require 规则**
+        - 1."/"表示绝对路径， "./" 表示相对当前文件的路径
+        - 2.支持js、json、node 拓展名，不写时会依次尝试
+        - 3.不写路径时
+            - 当不写路径时会被认为是 build-in 模块（**自带模块**）（优先）
+            - 或者各级 node_modules 内的第三方模块，先会找当前层级的 node_modules 如果没有，则会向上一层寻找，如果一直到根目录都没找到 该模块 则会报错
+    - **require 特性**
+        - 1.**module 被加载的时候执行，加载后缓存**
+            - 加载后缓存 的意思是，只加载一次，第二次就直接从内存中读取了，不会重复加载了
+    - 1.定义一个模块
+        ```js
+        // 02-cusmod.js
+        console.log('this is a module')
+
+        const testVar = 100;
+
+        function test(){
+            console.log(testVar)
+        }
+
+        module.exports.testVar = testVar;
+        module.exports.testFn = test;
+        ```
+    - 2.执行一个引用模块
+        ```js
+        // 03-require.js
+        const mod = require('./02-cusmod.js')
+
+        console.log(mod.testVar)
+
+        mod.testFn()
+        ```
+    - 3.执行 ```node 03-require.js```
+        - 执行结果如下：
+        ```js
+        this is a module
+        100
+        100
+        ```
+        - 但是这其中，你会发现有一点奇怪的地方，为什么会出现 ```this is a module``` ?
+        - 原因：
+            - 当我们加载一个模块的时候，它的所有语句都会被执行，所以我们才能拿到里面的变量
