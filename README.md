@@ -569,21 +569,13 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 但是，```process.nextTick()``` 会比 ```setImmediate()``` **执行的早**
                 - 我们来验证一下
                 ```js
-                setImmediate(() => {
-                    console.log('setImmediate')
-                })
+                setImmediate(() => { console.log('setImmediate') })
 
-                setTimeout(() => {
-                    console.log('setTimeout')
-                }, 0)
+                setTimeout(()   => { console.log('setTimeout') }, 0)
 
-                setInterval(() => {
-                    console.log('setInterval')
-                }, 0)
+                setInterval(()  => { console.log('setInterval') }, 0)
 
-                process.nextTick(() => {
-                    console.log('nextTick')
-                })
+                process.nextTick(() => { console.log('nextTick') })
                 ```
                 - 执行结果
                 ```js
@@ -603,4 +595,3 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
 
 
-[3-7 4:48]()
