@@ -396,7 +396,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - CommonJS
         - Buffer, process, console
         - timer
-            - 包括 setTimeout, setInterval, ...等
+            - 包括 setTimeout, setInterval, setImmediate ...等
         - 以上的属性和方法，都是 node 默认挂载在 global 上的
     ```js
     // 09-global.js
@@ -518,6 +518,82 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
                     /usr/local/bin/node     // 这是 process.execPath 读取到的 可执行程序的路径
                     ```
+        - ```process.env``` **返回包含用户环境的对象**
+            ```js
+            // 10-process-env.js
+            console.log(process.env)
+            ```
+            此对象的示例如下所示：
+            ```js
+            {
+                TERM: 'xterm-256color',
+                SHELL: '/usr/local/bin/bash',
+                USER: 'maciej',
+                PATH: '~/.bin/:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin',
+                PWD: '/Users/maciej',       // 当前的路径
+                EDITOR: 'vim',
+                SHLVL: '1',
+                HOME: '/Users/maciej',
+                LOGNAME: 'maciej',
+                _: '/usr/local/bin/node'
+
+                // ...等待
+            }
+            ```
+        - ```process.cwd()``` **返回当前路径，跟命令行里 pwd 是一样的**
+            ```js
+            // 10-process-env.js
+            console.log(process.cwd())
+            ```
+            - 执行结果
+            ```js
+            /Users/Samartian/nodejs/demos
+            ```
+        - ```setImmediate()``` **等下一个事件队列**
+            - 同步的东西都执行完后，就执行它 ```setImmediate()```
+            - 它和事件无关，所以它只有一个参数, 直接传入一个 function 即可
+            ```js
+            setImmediate(() => {
+                console.log('setImmediate')
+            })
+            ```
+            - 题外话：node.js 是不断的在检查自己的事件队列的
+        - ```process.nextTick()```
+            - ```process.nextTick()``` 跟 ```setImmediate()``` 非常像，都是过一会儿执行
+            - **当前事件队列里面的东西执行完后，就执行他**
+            ```js
+            process.nextTick(() => {
+                console.log('nextTick')
+            })
+            ```
+            - 但是，```process.nextTick()``` 会比 ```setImmediate()``` **执行的早**
+                - 我们来验证一下
+                ```js
+                setImmediate(() => {
+                    console.log('setImmediate')
+                })
+
+                setTimeout(() => {
+                    console.log('setTimeout')
+                }, 0)
+
+                setInterval(() => {
+                    console.log('setInterval')
+                }, 0)
+
+                process.nextTick(() => {
+                    console.log('nextTick')
+                })
+                ```
+                - 执行结果
+                ```js
+                nextTick
+                setInterval
+                setTimeout
+                setImmediate
+                ```
+                - 总结：
+                    -  **执行速度**： ```process.nextTick()``` > ```setTimeout()``` = ```setInterval()``` > ```setImmediate()```
 
 
 
@@ -527,20 +603,4 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-[3-6 0:00]()
+[3-7 4:48]()
