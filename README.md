@@ -22,7 +22,7 @@ Node.js 各种语法 入门讲解
     - [3-2 CommonJS2](#3-2-环境--调试-commonjs2)
     - [3-4 引用系统内置模块 & 引用第三方模块](#3-4-环境--调试--引用系统内置模块--引用第三方模块)
     - [3-5 module.exports 与 exports 的区别](#3-5-环境--调试--moduleexports-与-exports-的区别)
-    - [3-6 环境 & 调试 —— global变量]()
+    - [3-6 global变量]()
 - []()
 - []()
 
@@ -157,7 +157,7 @@ Node.js 各种语法 入门讲解
 
 ## 第3章 环境 & 调试
 NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试工具 & 方法
-- ### 3-1 环境 & 调试 ——CommonJS1
+- ### 3-1 CommonJS1
     - #### node 运行环境
         - 安装node [node官网](https://nodejs.org)
         - **CommonJS** - 模块规范
@@ -189,7 +189,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - ```--inspect-brk``` 在第一行处打断点
         - 然后在 chrome 浏览器，打开控制台，会控制台左侧看到一个绿色的 node图标，点击图标，即可进入node调试界面
 
-- ### 3-2 环境 & 调试 ——CommonJS2
+- ### 3-2 CommonJS2
     - **require 规则**
         - 1."/"表示绝对路径， "./" 表示相对当前文件的路径
         - 2.支持js、json、node 拓展名，不写时会依次尝试
@@ -302,7 +302,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         ```
         - 在我们写业务代码时，要**尽量避免** 这种循环加载的情况，因为很难理解，容易把人绕晕
         
-- ### 3-4 环境 & 调试 —— 引用系统内置模块 & 引用第三方模块
+- ### 3-4 引用系统内置模块 & 引用第三方模块
     - 1.引用系统内置模块
         ```js
         // 06-fs.js
@@ -335,7 +335,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         ```
         - 在使用第三方模块时，需要安装该模块 ```npm i chalk```
 
-- ### 3-5 环境 & 调试 —— module.exports 与 exports 的区别
+- ### 3-5 module.exports 与 exports 的区别
     - 我们知道，一个模块中执行的时候，NodeJS 会帮我们包裹一个函数
         ```js
         // 08-exports.js
@@ -387,7 +387,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 不用轻易改变 ```exports``` 的指向，如果改变了 它就跟普通的对象没有任何区别
 
 
-- ### 3-6 环境 & 调试 —— global变量
+- ### 3-6 global变量
     - global 是什么？
         - global 是 NodeJS 的全局变量
         - 和浏览器非常相像，在浏览器中，我们的 全局方法和属性 就挂载在 window 中
@@ -417,7 +417,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     console.log(testVar2)   // 200  全局变量, 任意一个地方都可以访问
     ```
 
-- ### 3-7 环境 & 调试 —— process进程
+- ### 3-7 process进程
     - [Process 官方文档](http://nodejs.cn/api/process.html)
     - 什么是 Process ？
         - 进程
@@ -580,18 +580,272 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
                 - 执行结果
                 ```js
                 nextTick
-                setInterval
                 setTimeout
+                setInterval
                 setImmediate
                 ```
                 - 总结：
                     -  **执行速度**： ```process.nextTick()``` > ```setTimeout()``` = ```setInterval()``` > ```setImmediate()```
+                    - ```process.nextTick()``` 是插入了 **当前事件队列的最后一个**
+                    - ```setImmediate()``` 是放在 **下个事件队列的队首**
+                    - ```setTimeout()``` 和 ```setInterval()``` 放在上面两个的中间
+                    - 如果用 ```setImmediate()``` 可以，用 ```process.nextTick()``` 也可以，这种情况下，推荐用 ```setImmediate()```，因为这是后来优化的版本 后来加上的api
+                    <br><br>
+                    - 如果 ```process.nextTick()``` 里面 再插入 ```process.nextTick()```，那么其他的几个 timer 就可能导致 我正常的异步操作都没法正常执行了，所以在使用 ```nextTick()``` 时 一定要慎重。
+                        ```js
+                        process.nextTick(() => {
+                            console.log('nextTick')
+
+                            process.nextTick(() => {
+                                console.log('nextTick')
+                            })
+                        })
+                        ```
+                        - 除非你想要做 异步操作前 执行某个操作，才用 ```process.nextTick()```
+
+- ### 3-8 debug 调试
+    - 为什么要 **debug 调试**？
+        - 在我们编写比较复杂的程序，遇到一些意外的问题，让我们不能一眼看出问题时，如果了解调试技巧，可以让我们**排查问题 变得迅速 且 精确**
+    - #### node 调试工具 使用方法
+        - ```"node --inspect-brk demo.js"```
+            - ```--inspect``` 开启调试工具
+            - ```--inspect-brk``` 开启调试工具 并 在第一行上打一个断点
+        - 然后在 chrome 浏览器，打开控制台，会控制台左侧看到一个绿色的 node图标，点击图标，即可进入node调试界面
+        - 在我们做 plugin 开发的时候，需要对 plugin 做调试的时候，在插件代码里写 ```debugger;``` 来手动打断点
+        - **add conditional breakpoint** 条件断点
+            - 条件断点，在对于 for 循环，或者某些特定情况下，暂停，是非常实用的一个功能
+        ```js
+        console.log(process.env)
+
+        setImmediate(() => { console.log('setImmediate') })
+
+        debugger;
+
+        setTimeout(()   => { console.log('setTimeout') }, 0)
+
+        process.nextTick(() => { console.log('nextTick') })
+        ```
+    - 除了可以利用 chrome 浏览器做node调试以外，还可以利用 vscode 里面的调试工具来调试，操作方法跟 chrome 非常类似
 
 
+## 第4章 NodeJS 基础 API
+介绍 NodeJS 最常用的基础 API，为后面项目开发做好准备path、Buffer、event、fs。
+- ### 4-1 path 路径
+    - 1.path 是 node.js 内置模块，使用时需要先引入
+        ```js
+        const path = require('path')
+        ```
+    ```
+    normalize join resolve
+    basename extname dirname
+    parse format
+    sep delimiter win32 posix
+    ```
+    - 2.path.normalize() 路径规范化
+        - 作用：帮我们把路径做一些简单的处理，可能有时候 我们写的路径有一些小的问题，小的瑕疵，它能自动识别 并 帮我们改成标准的写法
+        ```js
+        const { normalize } = require('path');              // ES6 语法
+        const   normalize   = require('path').normalize;    // ES5 语法
+
+        console.log(normalize('/usr//local/bin'))           // usr/local/bin  比如说不小心多写了一个 '/'
+        console.log(normalize('/usr/local/../bin'))         // usr/bin        比如直接在路径里写回到上一层
+        ```
+    - 3.path.join() 拼接路径
+        ```js
+        const path = require('path')
+
+        console.log(path.join('/usr/', '/local', '/bin/'));     // \usr\local\bin\
+        console.log(path.join('/usr', '../local', 'bin/'));     // \local\bin\
+        ```
+    - 4.path.resolve() 获取绝对路径
+        ```js
+        const path = require('path')
+
+        console.log(path.resolve('./'));   // C:\Users\Administrator\Desktop\nodejs\js  获取当前路径的绝对路径
+        ```
+    - 5.basename extname dirname
+        ```js
+        const path = require('path')
+
+        const filePath = '/usr/local/bin/no.txt'
+
+        console.log(path.basename(filePath));   // 文件名
+        console.log(path.dirname(filePath));    // 所在文件夹路径
+        console.log(path.extname(filePath));    // 拓展名
+        ```
+    - 6.parse format
+        - parse format 是一对互逆的操作
+            - parse 把文件名解析成 basename extname dirname
+            - format 是 parse 的逆操作
+        ```js
+        const path = require('path')
+
+        const filePath = '/usr/local/node_modules/n/package.json'
+        const ret = path.parse(filePath);
+
+        console.log(ret);
+        console.log(format(ret));
+
+        // 返回内容
+        { 
+            root: '/',
+            dir: '/usr/local/node_modules/n',
+            base: 'package.json',
+            ext: '.json',
+            name: 'package' 
+        }
+
+        /usr/local/node_modules/n/package.json
+        ```
+        - 一般情况下 format 用的比较少，但是 如果你得到了 path.parse() 的结果，然后需要改其中的一些信息，再转回 filePath 的形式，用 format 就会比 字符串查找的方式简单多了。
+
+    - 7.sep delimiter win32 posix 操作系统相关的属性方法
+        - path.sep 提供平台特定的路径片段分隔符
+            - Windows 上是 \
+            - POSIX 上是 /
+        - path.delimiter 是 PATH 路径定界符
+            - ; 用于 Windows
+            - : 用于 POSIX
+        - path.win32 属性提供对特定于 Windows 的 path 方法的实现的访问
+        - path.posix 属性提供对 path 方法的 POSIX 特定实现的访问
+            - posix 是指 可移植性操作系统接口
+        ```js
+        const path = require('path')
+
+        console.log('sep: ', path.sep)          // 打印: '/'
+        console.log('sep: ', path.win32.sep)
+
+        console.log('sep: ', process.env.PATH)
+        // 打印: '/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin'
+
+        console.log('sep: ', path.delimiter)
+        console.log('sep: ', path.win32.delimiter)      // 看 win 上是怎么实现的
+        console.log('sep: ', path.posix.delimiter)      // 看 posix 上是怎么实现的
+
+        process.env.PATH.split(path.delimiter);
+        // 返回: ['/usr/bin', '/bin', '/usr/sbin', '/sbin', '/usr/local/bin']
+        ```
+    - 8.几个类似的路径 的区别
+        ```js
+        const path = require('path')
+
+        const mod = require('./10-process-env.js')
+
+        console.log('__dirname     ', __dirname)
+        console.log('process.cwd() ', process.cwd())
+        console.log('./            ', path.resolve('./'))
+        ```
+        - 1.当你 cd 到 demos 目录下时，打印结果
+        ```
+        __dirname      /user/Samaritan/nodejs/demos
+        process.cwd()  /user/Samaritan/nodejs/demos
+        ./             /user/Samaritan/nodejs/demos
+        ```
+        - 2.当你 cd 到 demos 的上层目录下时，打印结果
+        ```
+        __dirname      /user/Samaritan/nodejs/demos
+        process.cwd()  /user/Samaritan/nodejs
+        ./             /user/Samaritan/nodejs
+        ```
+        - 总结：
+            - ```__dirname``` 和 ```__filename``` 总是返回文件的绝对路径
+            - ```process.cwd()``` 总是返回执行 node 命令所在的文件夹，跟 ```pwd``` 一样
+            - ```./```
+                - 在 require 方法中总是相对当前文件所在的文件夹
+                - 在其他地方 和 process.cwd() 一样，相对 node 命令所在的文件夹
+
+- ### 4-3 Buffer
+    - 背景：
+        - node 操作频率比较高的两个东西，一个是 **file**，另一个是 **网络**，这两个的共同点都是要操作 **二进制数据**，所以就引入了 **Buffer** 来处理
+        - 在引入 TypedArray 之前，JavaScript 语言没有用于读取或操作二进制数据流的机制。
+    - 1.**Buffer 是用于处理二进制数据流的**
+    - 2.**实例类似整数数组，大小固定**
+        - 里面都是 0~255 的数字
+        - 16进制是数字来表示
+        - Buffer 大小是固定的。不能像数组一样，不能随便修改长度，追加内容
+        - 实例化之后，是多大就多大，不能进行变更了
+    - 3.**C++ 代码在 V8 堆外分配物理内存**
+        - Buffer 所用的 堆内存，并不是 V8 来分配的，而是C++ 代码在 V8 堆外分配物理内存
+    - 4.**Buffer Api**
+        ```js
+        const buf1 = Buffer.alloc(10)
+        // 创建一个长度为10，且用零填充的 Buffer
+
+        const buf2 = Buffer.alloc(10, 1)
+        // 创建一个长度为10，且用 0x1 填充的 Buffer。其中 0x1 为 1 的16进制写法
+
+        const buf3 = Buffer.allocUnsafe(10)
+        // 创建一个长度为10，且未初始化的 Buffer
+        // 这个方法比调用 Buffer.alloc() 更快
+        // 但返回的 Buffer 实例可能包含旧数据
+        // 因此需要使用 fill() 或者 write() 重写
+
+        const buf4 = Buffer.from([1,2,3])
+        // 创建一个包含 [0x1, 0x2, 0x3] 的 Buffer
+
+        const buf5 = Buffer.from('test')
+        // 创建一个包含 UTF-8 字节 [0x74, 0xc3, 0xa9, 0x73, 0x74] 的 Buffer。
+
+        const buf6 = Buffer.from('test', 'latin1')
+        // 创建一个包含 test 的字节，并且是用 Latin-1 方式编码的
+        ```
+    - 5.Buffer 静态属性方法，本身被放在 Buffer 类中的，所以不用实例化
+        ```
+        Buffer.byteLength
+        Buffer.isBuffer()
+        Buffer.concat()
+        ```
+        - Buffer.byteLength
+            - 返回字符串的实际 **字节** 长度
+            - 与 **String.prototype.length** 不同，后者返回字符串的 **字符数**
+        ```js
+        const str = '我+你=我爱你'
+
+        console.log(`${str}: ${str.length} 个字符， `+
+                    `${Buffer.byteLength(str, 'utf8')} 个字节`)
+
+        // 打印：我+你=我爱你: 7 个字符, 17个字节
+        ```
+        - Buffer.isBuffer() 判断是否为 Buffer
+        ```js
+        console.log(Buffer.isBuffer({}))    // false
+        console.log(Buffer.isBuffer(Buffer.from([1,2,3])))   // true
+        ```
+        - Buffer.concat()  拼接Buffer
+        ```js
+        const buf1 = Buffer.from('This ')
+        const buf2 = Buffer.from('is ')
+        const buf3 = Buffer.from('a ')
+        const buf4 = Buffer.from('test ')
+        const buf5 = Buffer.from('! ')
+
+        const buf = Buffer.concat([buf1, buf2, buf3, buf4, buf5])
+
+        console.log(buf.toString())     // This is a test !
+        ```
+    - 6.Buffer 实例 Api，需要先实例化一个Buffer, 才能使用
+        ```
+        buf.length
+        buf.toString()
+        buf.fill()
+        buf.equals()
+        buf.indexOf()
+        buf.copy()
+        ```
+        ```js
+        const buf = Buffer.from('This is a test !')
+        console.log(buf.length)  // 16
+        // buf.length 它返回的值，不一定是指里面有多少个字符，而是 buffer 实际占用字节数
+        // 例如，我申请10个长度的 Buffer，但是我只在里面放一个字符，那么它仍然长度为10
+        const buf2 = Buffer.alloc(10)
+        buf2[0] = 2
+        console.log(buf2.length)    // 10
 
 
-
-
+        console.log(buf.toString())     // This is a test !
+        console.log(buf.toString('base64'))     // VGhpcyBpcyBhIHRlc3QgIQ==
+        // 默认以 utf-8 方式解码，也可以指定解码方式
+        ```
 
 
 
