@@ -758,6 +758,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     - 背景：
         - node 操作频率比较高的两个东西，一个是 **file**，另一个是 **网络**，这两个的共同点都是要操作 **二进制数据**，所以就引入了 **Buffer** 来处理
         - 在引入 TypedArray 之前，JavaScript 语言没有用于读取或操作二进制数据流的机制。
+        - Buffer 是一个很像 数组 的东西(TypeArray)，很多 Api 也类似
     - 1.**Buffer 是用于处理二进制数据流的**
     - 2.**实例类似整数数组，大小固定**
         - 里面都是 0~255 的数字
@@ -833,19 +834,84 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         buf.copy()
         ```
         ```js
+        // buf.length 它返回的值，不一定是指里面有多少个字符，而是 buffer 实际占用字节数
         const buf = Buffer.from('This is a test !')
         console.log(buf.length)  // 16
-        // buf.length 它返回的值，不一定是指里面有多少个字符，而是 buffer 实际占用字节数
         // 例如，我申请10个长度的 Buffer，但是我只在里面放一个字符，那么它仍然长度为10
         const buf2 = Buffer.alloc(10)
         buf2[0] = 2
         console.log(buf2.length)    // 10
 
 
+        // buf.toString()  默认以 utf-8 方式解码，也可以指定解码方式
         console.log(buf.toString())     // This is a test !
         console.log(buf.toString('base64'))     // VGhpcyBpcyBhIHRlc3QgIQ==
-        // 默认以 utf-8 方式解码，也可以指定解码方式
+
+
+        // buf.fill() 接收的参数：填充的 value, 从第几个开始，填充到第几个。如果只传入了 value 则自动填充完所有
+        const buf3 = Buffer.allocUnsafe(10)
+        console.log(buf3)                   // <Buffer 00 00 00 00 00 00 00 00 18 34>
+        console.log(buf3.fill(10, 2, 6))    // <Buffer 00 00 0a 0a 0a 0a 00 00 18 34>
+
+
+        // buf.equals()  判断两个Buffer内容是否相等
+        // 仅仅是判断两个Buffer是否相等，不判断他们是不是 同一个Buffer (指向同一块内存)
+        const buf4 = Buffer.from('test')
+        const buf5 = Buffer.from('test')
+        const buf6 = Buffer.from('test!')
+        console.log(buf4.equals(buf5))      // true
+        console.log(buf4.equals(buf6))      // false
+        
+
+        // buf.indexOf()  buf 中首次出现 value 的索引，如果 buf 没包含 value 则返回 -1
+        console.log(buf4.indexOf('es'))     // 1
+        console.log(buf4.indexOf('esa'))    // -1
+        // 还有 buf.lastIndexOf() 用法一样，返回 最后一次出现的索引
+
+
+
+
+        // buf.copy()  拷贝buffer
+        // buf.copy(b, 0, i) 把buf拷贝到 b 里面去，从 b[0] 开始写入，写入的内容来源从 buf[i] 开始拷贝
+        const buf = Buffer.from('中文字符串！')
+
+        for(let i = 0; i < buf.length; i += 5 ){    // 把字符串拆分，每5个字节分成一个
+            const b = Buffer.allocUnsafe(5)
+            buf.copy(b, 0, i)
+
+            console.log(b.toString())
+        }
+        // 打印：
+        // 中�
+        // �字�
+        // ��串
+        // ！
+
+
+        // 通过 StringDecoder 解决中文乱码问题
+        const StringDecoder = require('string_decoder').StringDecoder;  // StringDecoder 也是node的内置模块
+        const decoder = new StringDecoder('utf8');  // 实例化 StringDecoder, 并传入解码方式
+
+        for(let i = 0; i < buf.length; i += 5 ){
+            const b = Buffer.allocUnsafe(5)
+            buf.copy(b, 0, i)
+
+            console.log(decoder.write(b))
+        }
+        // 打印：
+        // 中
+        // 文字
+        // 符串
+        // ！
         ```
+        
+        - StringDecoder 解码原理
+            - StringDecoder 不会知道自己在处理 宽字节 的东西，它会自动检测，看看多少个能打印出来
+            - 在上面的例子中，中文是 每3个字节为一个字符，它尝试性测试到了 每3个字节 能正常打印，所以后面都套用这个规则来 解码
+            - 测试到 0~2 个字节可以打印一个，所以，即使第一次除开 0~2 个字节后，还有2个字节
+            - 但是发现，2个字节没法正常解码，所以，就会先把剩下的2个字节先存起来，留到下一次用
+            - 下一次：把上一次的 3~4 个字节，跟下一次的 第0个 字节拼接，发现能正常解码，于是就这样输出
 
 
-
+- ### 4-6 Event 事件
+    - 

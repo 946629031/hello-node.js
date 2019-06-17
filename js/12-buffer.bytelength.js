@@ -31,5 +31,12 @@ buf7[0] = 2
 console.log(buf7.length)    // 10
 
 
+
 console.log(buf6.toString()) // This is a test !
 console.log(buf.toString('base64'))     // This is a test !
+
+
+
+const buf8 = Buffer.allocUnsafe(10)
+console.log(buf8)
+console.log(buf8.fill(10, 2, 6))
