@@ -914,4 +914,88 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
 
 - ### 4-6 Event 事件
-    - 
+    - 什么时候会用到 ```Event``` 事件呢？
+        - 主进程的业务逻辑，遇到要调用 I/O 操作时，就会异步调用 系统底层的 I/O 进行处理，当处理完后，它会告诉主进程 说"**已经处理完了,可以进行下一步了**"，主进程接收到通知后，就会继续往下执行
+        - 那么问题来了，他是怎么做到 通知主进程 "**已经处理完了**" 的呢？
+        - 答：通过 **触发事件** ```EventEmitter``` 类的实例。
+    - 所有能触发事件的对象都是 ```EventEmitter``` 类的实例，你要让你的方法有 **事件触发的能力** 就要继承 ```EventEmitter``` 类。这些对象开放了一个 ```eventEmitter.on()``` 函数，允许将一个或多个函数绑定到会被对象触发的事件名上。
+    - 例子，一个绑定了监听器的 ```EventEmitter``` 实例。```eventEmitter.on()``` 方法用于注册监听器，```eventEmitter.emit()``` 方法用于触发事件。
+        ```js
+        const EventEmitter = require('events')
+
+        class CustomEvent extends EventEmitter {}
+
+        const ce = new CustomEvent()
+
+        ce.on('test', () => {
+            console.log('this is a test!')
+        })
+
+        setInterval(() => {
+            ce.emit('test')  // 触发绑定在 ce 实例上的 test 事件
+        }, 500)
+        ```
+    - 在触发事件时，如何传递参数？
+        ```js
+        const EventEmitter = require('events')
+
+        class CustomEvent extends EventEmitter {}
+
+        const ce = new CustomEvent()
+
+        ce.on('error', (err, time, num) => {
+            console.log(err)    // error msg...
+            console.log(time)   // 1560847624263
+            console.log(num)    // 123
+        })
+
+        ce.emit('error', new Error('oops!'), Date.now(), 123)  
+        // 由于 eventEmitter.emit() 允许传递多个参数，所以直接在后面跟着写就行了，参数个数不限
+        ```
+    - 只触发一次的事件
+        - 在有的情况下，一个事件，可能在N种情况下，都会被触发，但是我只要他 能且只能 被触发一次就可以了。那么该如何实现呢？
+        - 把上面第二个例子改成这样，即可
+        ```js
+        const EventEmitter = require('events')
+
+        class CustomEvent extends EventEmitter {}
+
+        const ce = new CustomEvent()
+
+        ce.once('test', () => {     // 把这里原来的 on() 方法，改成 once() 即可。跟 jquery 类似
+            console.log('this is a test!')
+        })
+
+        setInterval(() => {
+            ce.emit('test')
+        }, 500)
+        ```
+    - 取消事件绑定
+        - 在有的情况下，有的事件 我只需要触发两次。或者有的场景下，我已经绑定的事件，需要移除掉，那么我们该怎么办呢？
+        - 类似于浏览器里的，```removeEventListener()```
+        ```js
+        const EventEmitter = require('events')
+
+        class CustomEvent extends EventEmitter {}
+
+        function fn1(){
+            console.log('fn1')
+        }
+
+        function fn2(){
+            console.log('fn2')
+        }
+
+        const ce = new CustomEvent()
+
+        ce.on('test', fn1)
+        ce.on('test', fn2)
+
+        setTimeout(() => {
+            ce.removeListener('test', fn1)    // 移除 test 事件下面的 fn1 function
+            ce.removeListener('test', fn2)
+
+            ce.removeAllListeners('test')     // 移除 test 事件下的所有 事件处理函数
+        },1500)
+        ```
+
