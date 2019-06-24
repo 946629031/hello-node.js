@@ -25,15 +25,14 @@ Node.js 各种语法 入门讲解
     - [3-6 global变量](#3-6-global变量)
     - [3-7 process进程](#3-7-process进程)
     - [3-8 debug 调试](#3-8-debug-调试)
-- [NodeJS 基础 API](#第4章-nodejs-基础-api)
+- [第4章 NodeJS 基础 API](#第4章-nodejs-基础-api)
     - [4-1 path 路径](#4-1-path-路径)
     - [4-3 Buffer](#4-3-buffer)
     - [4-6 Event 事件](#4-6-event-事件)
     - [4-8 fs 文件系统]()
+- [第5章 ]()
     - []()
     - []()
-
-- []()
 
 ----
 
@@ -143,7 +142,7 @@ Node.js 各种语法 入门讲解
             - 但是我们发现，单核CPU的电脑 也是可以一边听音乐 一边上网的。按理说，这也是调CPU的指令 一句句执行 是不能同时执行两个程序的。实际上，他们也不是同时执行的，计算机用了一个很巧妙的方法，跟播放视频很像，一秒24帧，虽然是一帧一帧的，但是肉眼看起来就是连续的动画。CPU也是这样，使用了**调度算法**，现在有两个程序，我在非常快的速度做切换，可能是0.1纳秒，不断的切换，0.1纳秒 执行A程序，0.1纳秒 执行B程序。对于人来说，就以为是连续的，我们的听的音乐也是连续的。
         - 多进程：启动多个进程，多个进程可以一块执行多个任务
     - #### NodeJS 工作模型
-        <!-- - ![NodeJS 工作模型](https://github.com/946629031/hello-node.js/blob/master/img/1.jpg) -->
+        - ![NodeJS 工作模型](https://github.com/946629031/hello-node.js/blob/master/img/1.jpg)
         - 其中，点菜的动作很快 类似于 CPU计算，大厨做饭 相当于 I/O操作
         - 类似于上面说到的，单纯的增加厨师，就相当于 每来一个web请求，我就增加一个进程 处理这个请求
             - 后面，老王发现，在一个服务员对接一个大厨的模式中，他顾的服务员太悠闲了，两分钟就点好菜了，然后大厨就做10分钟，其中服务员会有8分钟没事干。
@@ -1024,7 +1023,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('成功删除 /tmp/hello')
         })
         ```
-    1. fs.readFile() 读文件
+    - 1.fs.readFile() 读文件
         - ```fs.readFile()``` 是异步读取
             ```js
             const fs = require('fs')
@@ -1054,7 +1053,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 而 如果是使用 ```fs.readFile()``` 这种异步方式，主进程接到读文件的命令后，就会交给系统底层 I/O 去执行，执行完了才告诉主进程，这种方式 **不会阻塞主进程** ，能够响应N个用户的请求
             - 所以，**能用异步就尽量用异步**，因为异步是node推荐的方式
 
-    2. fs.writeFile() 写文件
+    - 2.fs.writeFile() 写文件
         ```js
         const fs = require('fs')
 
@@ -1098,7 +1097,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         ```
         - 不建议在调用 fs.open()、 fs.readFile() 或 fs.writeFile() 之前使用 fs.stat() 检查文件是否存在。 而是应该直接打开、读取或写入文件，如果文件不可用则处理引发的错误。
         - 要检查文件是否存在但随后并不对其进行操作，则建议使用 fs.access()。
-    4. fs.rename() 重命名
+    - 4.fs.rename() 重命名
         ```js
         const fs = require('fs')
 
@@ -1108,7 +1107,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('重命名成功')
         })
         ```
-    5. fs.unlink() 删除文件
+    - 5.fs.unlink() 删除文件
         ```js
         const fs = require('fs')
 
@@ -1117,7 +1116,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('删除成功')
         })
         ```
-    6. fs.readdir() 读取文件目录
+    - 6.fs.readdir() 读取文件目录
         ```js
         const fs = require('fs')
 
@@ -1127,7 +1126,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log(files)
         })
         ```
-    7. fs.mkdir() 创建目录
+    - 7.fs.mkdir() 创建目录
         ```js
         const fs = require('fs')
 
@@ -1137,13 +1136,13 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('创建成功')
         })
         ```
-    8. fs.rmdir() 删除文件夹
+    - 8.fs.rmdir() 删除文件夹
         ```js
         const fs = require('fs')
 
         fs.rmdir('./test', err => {})
         ```
-    9. fs.watch() 监听
+    - 9.fs.watch() 监听
         - ```fs.watch()``` 是监听目录，```fs.watchFile()``` 是监听某一个文件
         - 这个 watch 就是 webpack 里面的 watch，用于监听某目录下的文件是否有改动 (增删改)，经常**被用于做本地构建**
         ```js
@@ -1154,7 +1153,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log(eventType, filename)
         })
         ```
-    10. fs.readStream() 
+    - 10.fs.readStream() 
         - 什么是 Stream ？
             - 我们一般翻译成 "流"
             - Stream 是有方向的数据。
@@ -1175,7 +1174,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         rs.pipe(process.stdout)     // process.stdout 输出到控制台, 也就是命令行里
         // 方向。所有的 stream 都有 pipe() 方法，意思是往谁里面倒
         ```
-    11. fs.writeStream()
+    - 11.fs.writeStream()
         - writeStream() 也不是我放在内存中，一次性都给你了；而是，我生产一点，就写给你一点
         ```js
         const fs = require('fs')
@@ -1198,7 +1197,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('写完了')
         })
         ```
-    12. 解决地狱回调的问题
+    - 12.解决地狱回调的问题
         - 在上面，我的写的逻辑都很简单，只是一个异步操作而已。
         - 在复杂场景里面，都是一个异步里面，调另外一个异步，然后再调另外一个异步... 无限调异步下去，就形成了 **回调地狱**。代码可读性非常差，如：
             ```js
@@ -1242,3 +1241,134 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
             test()
             ```
+            -当然，这里看起来上面的例子 有点小题大作了(并没有看起来变得简单)，但是，如果在更复杂的逻辑里面，上面的方法就能让代码变得的简单了
+
+## 第五章 项目初始化
+- ### 5-1 .gitignore
+    - 项目开始之前了解一下项目初始化知识，做开实战项目开始准备
+        - 1.gitignore：只上传有必要的代码到 github
+        - 2.npmignore：只上传有用的内容到 npm
+        - 3.editorconfig：统一代码风格
+    - #### 1.gitignore
+        - .gitignore 是什么？
+            - 当向 github 上传代码时，自动忽略掉某些文件，不上传，这些忽略规则被写在 .gitignore 中
+        - [.gitignore 官方文档](https://git-scm.com/docs/gitignore)
+        - 语法规则
+            - 前面 ``` / ``` 代表项目根目录
+            - 最后加 ``` / ``` 代表是目录
+            - ``` ! ``` 代表取反，不忽略该文件
+                - 使用场景：忽略掉整个文件夹，但是不忽略其中的某一个文件
+            - ``` * ``` 代表任意个字符
+            - ``` ? ``` 匹配任意一个字符
+            - ``` ** ``` 匹配多级目录
+            - ``` # ``` 注释
+        - EXAMPLES
+            ```.gitignore
+            logs
+            *.logs
+            npm-debug.log*
+            node_modules/
+            *.swp
+            .idea/
+            .DS_Store
+
+            # 忽略掉整个文件夹，但是不忽略其中的某一类的文件
+            build/
+            !build/**/index.js
+            ```
+    - #### 2.npmignore
+        - .npmignore 是什么？
+            - 上传 NPM 时，会自动忽略掉的文件 的配置文件。
+        - [.npmignore 官方文档](https://docs.npmjs.com/misc/developers#keeping-files-out-of-your-package)
+        - 注意：
+            - 如果项目中没有 .npmignore ，但是有 .gitignore ，那么他会自动使用 .gitignore
+        - EXAMPLES
+            ```
+            node_modules
+            src
+            test
+            ```
+        - 默认情况下，将忽略以下路径和文件，因此无需.npmignore显式添加它们：
+            ```
+            .*.swp
+            ._*
+            .DS_Store
+            .git
+            .hg
+            .npmrc
+            .lock-wscript
+            .svn
+            .wafpickle-*
+            config.gypi
+            CVS
+            npm-debug.log
+            ```
+        - 以下路径和文件永远不会被忽略，因此添加它们 .npmignore是没有意义的：
+            ```
+            package.json
+            README （及其变种）
+            CHANGELOG （及其变种）
+            LICENSE / LICENCE
+            ```
+            
+    - #### 3.editorconfig  统一代码风格
+        - .editconfig 是什么?
+            - 「官方解释」
+                - EditorConfig有助于为跨越各种编辑器和IDE的同一项目的多个开发人员维护一致的编码样式。
+            - 很多时候我们需要跨团队合作，或者一个项目大家都贡献代码
+            - 由于大家 编辑器都不一样，代码风格不一样。如代码缩进，有人用 Tab，有人用4个空格，有人用2个空格
+            - 也可能，每个项目的代码风格要求不一样，在切换项目开发时，如果每次都要改编辑器的代码风格，就会很烦
+            - .editconfig 就是来解决这些问题的
+        - [EditorConfig 官网](https://editorconfig.org/)
+        - EXAMPLES
+            - 下面是一个示例 .editorconfig 文件设置Python和JavaScript文件的行尾和缩进样式。
+            ```.editorconfig
+            # EditorConfig is awesome: https://EditorConfig.org
+
+            # top-most EditorConfig file
+            # 可以做每个文件夹都写一个 .editorconfig，但是如果 root = true 即表示我这里是顶层了，不再往上找了，.editorconfig 文件合并也合并到我这里为止 (类似于CSS的覆盖关系)
+            root = true
+
+            # Unix-style newlines with a newline ending every file
+            [*]                             # 所有文件都匹配
+            end_of_line = lf                # Unix 还是 Windows 的回车
+            insert_final_newline = true     # 最后一行回车
+
+            # Matches multiple files with brace expansion notation
+            # Set default charset
+            [*.{js,py}]
+            charset = utf-8
+            # .js .py 都要用 utf-8 编码写
+
+            # 4 space indentation
+            [*.py]
+            indent_style = space
+            indent_size = 4
+            # 缩进要用4个空格
+
+            # Tab indentation (no size specified)
+            [Makefile]
+            indent_style = tab
+            # Makefile 文件缩进用 tab
+
+            # Indentation override for all JS under lib directory
+            [lib/**.js]
+            indent_style = space
+            indent_size = 2
+            # lib 文件夹下的所有 js 文件，缩进要用2个空格
+
+            # Matches the exact files either package.json or .travis.yml
+            [{package.json,.travis.yml}]
+            indent_style = space
+            indent_size = 2
+            ```
+            - .editorconfig 后面写的会覆盖前面写的，类似于css 的覆盖关系
+
+
+
+- 实战项目1 - 「静态资源服务器」
+    - 要求：
+        - NodeJS
+        - 在任意目录下，执行命令，即可把该目录变成 静态资源服务器 的根目录
+        - 通过 URL 即可访问里面的文件夹 和文件内容
+        - 如 anywhere, 这是业界比较出色的实现方案
