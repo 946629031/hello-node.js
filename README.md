@@ -1497,7 +1497,116 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 >         - 如 anywhere, 这是业界比较出色的实现方案
 
 
-- ### 6-1 .gitignore
+- ### 6-1 静态资源服务器 01
+    - [NodeJS 创建http服务器](https://nodejs.org/en/docs/guides/getting-started-guide/)
+    ```js
+    // app.js
+    const http = require('http');
+
+    const hostname = '127.0.0.1';
+    const post = 3000;
+
+    const server = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/plain');    // text/plain 普通文本
+        res.end('Hello World\n');   // req, res 都是可写流。如果要写多条信息，就要 .write() .write() ... .end()
+    });
+
+    server.listen(port, hostname, () => {
+        console.log(`Server running at http://${hostname}:${port}/`);
+    })
+    ```
+    - 上面写完后，执行 ```node run app.js``` 即可启动 http 服务了
+
+- ### 6-2 使用 supervisor 监听目录，如果文件有变化 则自动重启服务器
+    ```js
+    // app.js
+    const http = require('http');
+
+    const hostname = '127.0.0.1';
+    const port = 3000;
+
+    const server = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader('Content-Type', 'text/html');     // 将内容显示为 HTML
+
+        res.write('<html>');
+        res.write('<body>');
+        res.write('Hello HTTP !');
+        res.write('</body>');
+        res.end('</html>');
+    });
+
+    server.listen(port, hostname, () => {
+        console.log(`Server running at http://${hostname}:${port}/`);
+    })
+    ```
+    - 存在的问题
+        - 像上面这例子，我们在开发过程中，如果修改了其中的内容，则需要不断的 手动重启服务器 ```node run app.js```，显得非常麻烦。
+        - 那么有没有什么方法，可以让他 **自动监听目录下的文件，如果文件有变化，则自动重启服务** 呢？
+        - 可以通过 **supervisor** , 来监听
+    - #### supervisor 使用
+        - 安装 ```npm i -g supervisor```
+        - ```supervisor app.js``` 通过 supervisor 启动服务
+        - 即可，自动监听目录下的文件，如果文件有变化，则自动重启服务
 
 
+- ### 6-3 实现 静态资源服务器
+    - 当用户请求来了一个 URL，我们要判断 URL 想要访问的地址
+        - 如果是个文件夹 我们就返回 文件夹的文件列表；
+        - 如果请求的是文件，我们就返回文件内容。
+        - 那么 这个需求，我们要怎么实现呢？
+    - 总体思路：
+        - 1.获取 用户请求的路径 是什么
+            - 用户请求的东西，都放在 req 中。可以启动 Chrome调试工具 查看 req 里面的内容
+        - 2.根据用户请求的 url，判断他要访问的是 文件 还是文件夹。通过 ```fs.stat()```
+    ```js
+    // app.js
+    const http = require('http');
+    const path = require('path');
+    const fs = require('fs');
+    const conf = require('./defaultConfig.js')
 
+    const server = http.createServer((req, res) => {
+        const url = req.url;    // 获取用户请求的 url
+        const filePath = path.join(conf.root, url);
+        // const filePath = path.join(conf.root, req.url);   // 上面两句可以合成并成一句
+
+        fs.stat(filePath, (err, stats) => {
+            if (err) {  // if err 则表示文件不存在，返回404
+                res.statusCode = 404;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(`${filePath} is no a directory or file`);
+                return;
+            }
+
+            // 如果不是404，则判断是文件还是目录
+            if (stats.isFile()) {   // 如果是文件，就返回文件内容
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');    // 文件内容通过文本形式返回
+                fs.createReadStream(filePath).pipe(res);   // 将文件内容 通过流的形式返回给客户端
+                // fs.readFile(filePath, (err, data) => { res.end(data) })
+                // 虽然上面一句，也可以通过 fs.readFile() 方法写，也是异步读取的
+                // 但是 fs.readFile() 是超级慢的，他要把所有的内容都读出来，才能往 response里面放，返回给客户端。响应速度是超级慢的
+            } else if (stats.isDirectory()) {   // 如果是文件夹，就返回文件列表
+                fs.readdir(filePath, (err, files) => {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/plain');
+                    res.end(files.join(','));   // files 是文件列表的数组，文件名通过 , 隔开
+                })
+            }
+        })
+    });
+
+    server.listen(port, hostname, () => {
+        console.log(`Server running at http://${hostname}:${port}/`);
+    })
+    ```
+    ```js
+    // defaultConfig.js
+    module.exports = {
+        root: process.cwd(),    // 获取当前文件夹路径，执行 node 命令所在的文件夹
+        hostname: '127.0.0.1',
+        port: 9527
+    }
+    ```
