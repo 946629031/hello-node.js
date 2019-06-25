@@ -1565,7 +1565,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     const http = require('http');
     const path = require('path');
     const fs = require('fs');
-    const conf = require('./defaultConfig.js')
+    const conf = require('./defaultConfig.js');
 
     const server = http.createServer((req, res) => {
         const url = req.url;    // 获取用户请求的 url
@@ -1584,10 +1584,12 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             if (stats.isFile()) {   // 如果是文件，就返回文件内容
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/plain');    // 文件内容通过文本形式返回
+
                 fs.createReadStream(filePath).pipe(res);   // 将文件内容 通过流的形式返回给客户端
                 // fs.readFile(filePath, (err, data) => { res.end(data) })
                 // 虽然上面一句，也可以通过 fs.readFile() 方法写，也是异步读取的
                 // 但是 fs.readFile() 是超级慢的，他要把所有的内容都读出来，才能往 response里面放，返回给客户端。响应速度是超级慢的
+
             } else if (stats.isDirectory()) {   // 如果是文件夹，就返回文件列表
                 fs.readdir(filePath, (err, files) => {
                     res.statusCode = 200;
