@@ -1711,8 +1711,6 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
     const server = http.createServer((req, res) => {
         const filePath = path.join(root, req.url);
-        console.log('filePath', filePath.red)
-
         handle(req, res, filePath);
     })
 
@@ -1738,7 +1736,6 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
                 const data = {      // 制作 template 数据
                     title: path.basename(filePath),
                     files,
-                    // dir: filePath,
                     dir: dir ? `/${dir}` : ''
                 }
                 console.log('filePath', filePath.green)     // 这里的 .green 是利用 colors库 使得输出到 命令行里的字体变色
@@ -1747,7 +1744,6 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             }
         } catch (err) {
             // console.error(err);
-
             res.statusCode = 404;
             res.setHeader('Content-Type', 'text/plain');
             res.end(`${filePath} is not a directory or file \n ${err}`);
@@ -1756,6 +1752,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     ```
     ```html
     // ./template/dir.html  模板文件
+    
     <!DOCTYPE html>
     <html lang="en">
     <head>
