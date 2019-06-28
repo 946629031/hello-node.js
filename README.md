@@ -1694,9 +1694,9 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     const fs = require('fs');
     const colors = require('colors');
 
-    const promisify = require('util').promisify;    // 引入 promisify
-    const stat = promisify(fs.stat);                // 异步函数 promisify 化
-    const readdir = promisify(fs.readdir);          // 异步函数 promisify 化
+    const promisify = require('util').promisify;
+    const stat = promisify(fs.stat);
+    const readdir = promisify(fs.readdir);
 
     const hostname = '127.0.0.1';
     const port = 9556;
@@ -1722,14 +1722,14 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
 
     async function handle(req, res, filePath){
         try{
-            const stats = await stat(filePath);     // 因为 promisify 后，要 await 异步函数回调，所以才把主逻辑抽离到 async function 中
+            const stats = await stat(filePath);
 
             if (stats.isFile()) {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/plain');
                 fs.createReadStream(filePath).pipe(res);
             } else if (stats.isDirectory()) {
-                const files = await readdir(filePath);    // 这里如果有错误，统一让它抛到外层的 try catch 去捕获异常 就好了，这里不做处理了
+                const files = await readdir(filePath);
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'text/html');
                 // res.end(files.join(','));
