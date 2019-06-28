@@ -1628,3 +1628,152 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         port: 9527
     }
     ```
+    - 到这里，基本功能已经实现了
+- ### 6-4 promisify 化 静态资源服务器
+    - 在上面 6-3 的代码中，我们用了很多的回调
+    - 所以，我们可以用 promisify 来把 回调去掉。**Promise 使得异步流程可以写成同步流程, 增加代码可读性**
+    ```js
+    const http = require('http');
+    const path = require('path');
+    const fs = require('fs');
+
+    const promisify = require('util').promisify;    // 引入 promisify
+    const stat = promisify(fs.stat);                // 异步函数 promisify 化
+    const readdir = promisify(fs.readdir);          // 异步函数 promisify 化
+
+    const hostname = '127.0.0.1';
+    const port = 9556;
+    const root = __dirname;
+    // const root = process.cwd();
+
+    const server = http.createServer((req, res) => {
+        const filePath = path.join(root, req.url);
+
+        handle(req, res, filePath);
+    })
+
+    server.listen(port, hostname, () => {
+        console.log(`Server is running at http://${hostname}:${port}/`);
+    })
+
+    async function handle(req, res, filePath){
+        try{
+            const stats = await stat(filePath);     // 因为 promisify 后，要 await 异步函数回调，所以才把主逻辑抽离到 async function 中
+
+            if (stats.isFile()) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                fs.createReadStream(filePath).pipe(res);
+            } else if (stats.isDirectory()) {
+                const files = await readdir(filePath);    // 这里如果有错误，统一让它抛到外层的 try catch 去捕获异常 就好了，这里不做处理了
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(files.join(','));
+            }
+        } catch (err) {
+            console.error(err);
+
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`${filePath} is not a directory or file \n ${err}`);    // 将错误输出到浏览器
+        }
+    }
+    ```
+    - **注意**：
+        - 将错误输出到浏览器，虽然方便了我们调试，但是也可能会暴露 堆栈信息，别有用心的人 能对此分析 并加以利用，所以这是非常危险的。
+        - 所以，我们可以做个判断，在开发模式下 才将错误输出到浏览器
+- ### 6-5 HTML模板
+    - 存在的问题：
+        - 到目前为止，服务器端的功能是实现了，但是在浏览器上 并不能通过点击 来切换目录，只是一些 纯文本的东西。
+        - 那么怎么才能解决这个问题呢？ 拼接字符串来实现 html 是可以的，但是维护性比较差。所以我们可以通过 **[handlebars](https://handlebarsjs.com/) web模板引擎** 来解决这个问题
+    - 1.安装 ```npm i handlebars```
+    ```js
+    const http = require('http');
+    const Handlebars = require('handlebars');       // 引入 handlebars
+    const path = require('path');
+    const fs = require('fs');
+    const colors = require('colors');
+
+    const promisify = require('util').promisify;    // 引入 promisify
+    const stat = promisify(fs.stat);                // 异步函数 promisify 化
+    const readdir = promisify(fs.readdir);          // 异步函数 promisify 化
+
+    const hostname = '127.0.0.1';
+    const port = 9556;
+    const root = __dirname;
+    // const root = process.cwd();
+
+    const tplPath = path.join(__dirname, './template/dir.html');
+    const source = fs.readFileSync(tplPath);    // 读取模板文件
+    // 为什么用同步读取？  1.下面的逻辑要正常工作，需要这一步为前提 
+    // 2.只需要读取一次即可，之后直接在内存中读取即可，因为每次的处理 模板文件都不变
+    const template = Handlebars.compile(source.toString());   // 生成 template
+
+    const server = http.createServer((req, res) => {
+        const filePath = path.join(root, req.url);
+        console.log('filePath', filePath.red)
+
+        handle(req, res, filePath);
+    })
+
+    server.listen(port, hostname, () => {
+        console.log(`Server is running at http://${hostname}:${port}/`);
+    })
+
+    async function handle(req, res, filePath){
+        try{
+            const stats = await stat(filePath);     // 因为 promisify 后，要 await 异步函数回调，所以才把主逻辑抽离到 async function 中
+
+            if (stats.isFile()) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/plain');
+                fs.createReadStream(filePath).pipe(res);
+            } else if (stats.isDirectory()) {
+                const files = await readdir(filePath);    // 这里如果有错误，统一让它抛到外层的 try catch 去捕获异常 就好了，这里不做处理了
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                // res.end(files.join(','));
+
+                const dir = path.relative(root, filePath);
+                const data = {      // 制作 template 数据
+                    title: path.basename(filePath),
+                    files,
+                    // dir: filePath,
+                    dir: dir ? `/${dir}` : ''
+                }
+                console.log('filePath', filePath.green)     // 这里的 .green 是利用 colors库 使得输出到 命令行里的字体变色
+                console.log('dir', dir.green)
+                res.end(template(data));    // 将数据和模板 返回给客户端
+            }
+        } catch (err) {
+            // console.error(err);
+
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`${filePath} is not a directory or file \n ${err}`);
+        }
+    }
+    ```
+    ```html
+    // ./template/dir.html  模板文件
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>{{title}}</title>
+    </head>
+    <body>
+        
+    {{#each files}}
+        <a href="{{../dir}}/{{this}}">{{this}}</a>
+    {{/each}}
+
+
+    <style>
+        a{ display: block; }
+    </style>
+    </body>
+    </html>
+    ```
