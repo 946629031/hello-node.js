@@ -1687,6 +1687,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 到目前为止，服务器端的功能是实现了，但是在浏览器上 并不能通过点击 来切换目录，只是一些 纯文本的东西。
         - 那么怎么才能解决这个问题呢？ 拼接字符串来实现 html 是可以的，但是维护性比较差。所以我们可以通过 **[handlebars](https://handlebarsjs.com/) web模板引擎** 来解决这个问题
     - 1.安装 ```npm i handlebars```
+    - 2.通过 handlebars HTML模板 生成动态网页
     ```js
     const http = require('http');
     const Handlebars = require('handlebars');       // 引入 handlebars
@@ -1752,7 +1753,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     ```
     ```html
     // ./template/dir.html  模板文件
-    
+
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -1773,4 +1774,248 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     </style>
     </body>
     </html>
+    ```
+- ### 6-7 自动传递 Content-Type && 根据不同文件类型显示不同icon
+    - 在浏览器里，加载到的资源 的 Response Headers 里面可以查看 该资源的 Content-Type (文件类型)
+    - 存在的问题：
+        - 但是，在我们上面的例子中，if isFile() 无论什么情况都是返回 text/plain (普通文本) 类型的
+        - 无论点击什么，都是返回文本，不能做到 点击图片显示图片；点击音视频文件，播放该文件
+        - 那么，有没有什么办法能让他智能一点，自动识别文件类型，然后返回相应的 Content-Type 呢？ 
+        - 如果能识别文件类型，我们还可以 根据不同文件类型显示不同icon，让用户体验更好
+    - 这种对于关系 被称为 MINE 和 MIME type 的对应关系
+        ```js
+        // mime.js
+        const path = require('path');
+
+        const mimeTypes = {        // 部分 MINE 和 MIME type 的对应关系
+            'css': 'text/css',
+            'gif': 'image/gif',
+            'html': 'text/html',
+            'ico': 'image/x-icon',
+            'jpeg': 'image/jpeg',
+            'jpg': 'image/jpeg',
+            'js': 'text/javascript',
+            'json': 'application/json',
+            'pdf': 'application/pdf',
+            'png': 'image/png',
+            'svg': 'image/svg+xml',
+            'swf': 'application/x-shockwave-flash',
+            'tiff': 'image/tiff',
+            'txt': 'text/plain',
+            'wav': 'audio/x-wav',
+            'wma': 'audio/x-ms-wma',
+            'wmv': 'audio/x-ms-wmv',
+            'xml': 'text/xml',
+        }
+
+        module.exports = (filePath) => {
+            let ext = path.extname(filePath)
+            .split('.')     // 如 jquery.min.JS 有可能返回的是 ".min.JS"
+            .pop()
+            .toLowerCase();
+            
+            
+            if (!ext) {   // 如果文件没有 拓展名
+                ext = filePath;
+            }
+            // console.log('ext', ext)
+
+            return mimeTypes[ext] || mimeTypes['txt'];
+            // 如果能读取到，则返回对应 mimeTypes, 否则都按照 普通文本返回
+        }
+        ```
+        ```js
+        // 6-5.handlebars_static_server.js
+        const http = require('http');
+        const Handlebars = require('handlebars');
+        const path = require('path');
+        const fs = require('fs');
+        const colors = require('colors');
+        const mime = require('./6-7.mime');     // 引入 mime.js 处理文件
+
+        const promisify = require('util').promisify;
+        const stat = promisify(fs.stat);
+        const readdir = promisify(fs.readdir);
+
+        const hostname = '127.0.0.1';
+        const port = 9556;
+        const root = __dirname;
+
+        const tplPath = path.join(__dirname, './template/dir.html');
+        const source = fs.readFileSync(tplPath);
+        const template = Handlebars.compile(source.toString());
+
+        const server = http.createServer((req, res) => {
+            const filePath = path.join(root, req.url);
+            handle(req, res, filePath);
+        })
+
+        server.listen(port, hostname, () => {
+            console.log(`Server is running at http://${hostname}:${port}/`);
+        })
+
+        async function handle(req, res, filePath){
+            try{
+                const stats = await stat(filePath);
+
+                if (stats.isFile()) {
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', mime(filePath));    // 使用 mime.js 的处理结果，自动识别
+                    fs.createReadStream(filePath).pipe(res);
+                } else if (stats.isDirectory()) {
+                    const files = await readdir(filePath);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/html');
+
+                    const dir = path.relative(root, filePath);
+                    const data = {      // 制作 template 数据
+                        title: path.basename(filePath),
+                        files,
+                        dir: dir ? `/${dir}` : ''
+                    }
+                    res.end(template(data));    // 将数据和模板 返回给客户端
+                }
+            } catch (err) {
+                res.statusCode = 404;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(`${filePath} is not a directory or file`);
+            }
+        }
+        ```
+    - 到这里，自动传递 Content-Type 就完成了。
+    - 下面讲解，怎么 **根据不同文件类型显示不同icon**
+    ```js
+    const http = require('http');
+    const Handlebars = require('handlebars');
+    const path = require('path');
+    const fs = require('fs');
+    const colors = require('colors');
+    const mime = require('./6-7.mime');
+
+    const promisify = require('util').promisify;
+    const stat = promisify(fs.stat);
+    const readdir = promisify(fs.readdir);
+
+    const hostname = '127.0.0.1';
+    const port = 9556;
+    const root = __dirname;
+
+    const tplPath = path.join(__dirname, './template/dir.html');
+    const source = fs.readFileSync(tplPath);    // 读取模板文件
+    const template = Handlebars.compile(source.toString());   // 生成 template
+
+    const server = http.createServer((req, res) => {
+        const filePath = path.join(root, req.url);
+        handle(req, res, filePath);
+    })
+
+    server.listen(port, hostname, () => {
+        console.log(`Server is running at http://${hostname}:${port}/`);
+    })
+
+    async function handle(req, res, filePath){
+        try{
+            const stats = await stat(filePath);
+
+            if (stats.isFile()) {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', mime(filePath));
+                fs.createReadStream(filePath).pipe(res);
+            } else if (stats.isDirectory()) {
+                const files = await readdir(filePath);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+
+                const dir = path.relative(root, filePath);
+                const data = {      // 制作 template 数据
+                    title: path.basename(filePath),
+                    dir: dir ? `/${dir}` : '',
+                    files: files.map(file => {    // 求每个文件的 文件类型
+                        return {
+                            file,
+                            icon: mime(file)
+                        }
+                    })
+                }
+                console.log('filePath', filePath.green)
+                console.log('dir', dir.green)
+                res.end(template(data));    // 将数据和模板 返回给客户端
+            }
+        } catch (err) {
+            // console.error(err);
+
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`${filePath} is not a directory or file`);
+        }
+    }
+    ```
+    ```html
+    // ./template/dir.html  模板文件
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>{{title}}</title>
+    </head>
+    <body>
+        
+    {{#each files}}
+        <a href="{{../dir}}/{{file}}">【{{icon}}】{{file}}</a>
+    {{/each}}
+
+    <style>
+        a{ display: block; }
+    </style>
+    </body>
+    </html>
+    ```
+    - 写到这里，那么如何把 html 里的文件名，换成 图片呢？
+    - 在 mime.js 里面，写 每个图片的地址 即可，然后在 html 模板里面去读取该 图片地址
+    ```js
+    // mime.js
+    const path = require('path');
+
+    const mimeTypes = {        // 部分 MINE 和 MIME type 的对应关系
+        'css': {
+            text: 'text/css',
+            icon: 'http://image-location'  // 这里写图片路径
+        },
+        'gif': 'image/gif',
+        'html': 'text/html',
+        'ico': 'image/x-icon',
+        'jpeg': 'image/jpeg',
+        'jpg': 'image/jpeg',
+        'js': 'text/javascript',
+        'json': 'application/json',
+        'pdf': 'application/pdf',
+        'png': 'image/png',
+        'svg': 'image/svg+xml',
+        'swf': 'application/x-shockwave-flash',
+        'tiff': 'image/tiff',
+        'txt': 'text/plain',
+        'wav': 'audio/x-wav',
+        'wma': 'audio/x-ms-wma',
+        'wmv': 'audio/x-ms-wmv',
+        'xml': 'text/xml',
+    }
+
+    module.exports = (filePath) => {
+        let ext = path.extname(filePath)
+        .split('.')     // 如 jquery.min.JS 有可能返回的是 ".min.JS"
+        .pop()
+        .toLowerCase();
+        
+        
+        if (!ext) {   // 如果文件没有 拓展名
+            ext = filePath;
+        }
+        // console.log('ext', ext)
+
+        return mimeTypes[ext] || mimeTypes['txt'];
+        // 如果能读取到，则返回对应 mimeTypes, 否则都按照 普通文本返回
+    }
     ```
