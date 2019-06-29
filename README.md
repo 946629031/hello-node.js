@@ -1973,6 +1973,15 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     </body>
     </html>
     ```
+    - 执行后，用浏览器访问，得到下面结果
+    ```
+    // 执行结果
+    【text/javascript】02-cusmod.js
+    【text/javascript】03-require.js
+    【text/javascript】04-require_cache.js
+    【text/javascript】05-main.js
+    ...
+    ```
     - 写到这里，那么如何把 html 里的文件名，换成 图片呢？
     - 在 mime.js 里面，写 每个图片的地址 即可，然后在 html 模板里面去读取该 图片地址
     ```js
@@ -2019,3 +2028,18 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         // 如果能读取到，则返回对应 mimeTypes, 否则都按照 普通文本返回
     }
     ```
+- ### 6-8 服务器 压缩文件 Content-Encoding 和 Accept-Encoding
+    - 在网页中，打开 ```控制台 - Network - 选择文本文件(.html, .css, .md ... 等) - 在 Request Headers / Response Headers ```
+    - 里面都有 ```Accept-Encoding: gzip, deflate, br``` 或者 ```Content-Encoding: gzip```
+    - Accept-Encoding: gzip, deflate
+        - 接受的编码格式
+        - gzip, deflate 都是常见的压缩算法
+    - 什么意思呢？
+        - 了解 HTTP 协议的同学肯定知道，**Accept-Encoding** 是当我们的浏览器 向服务器发起文件请求 的时候，会告诉服务器 我支持的几种压缩方式，如 ```Accept-Encoding: gzip, deflate, br```
+        - 意思是，随便你用这 3种方式中的任意一种 来压缩，我都能解压
+        - 然后，服务器收到请求，一看你要的是 文本文件，而且支持 ```gzip, deflate, br``` 这三种压缩方式，然后 我就挑一种 我认为最好的方式压缩，**把 压缩后的内容进行传输**， 同时 我告诉浏览器 我用的哪种方式进行压缩，如 ```Content-Encoding: gzip```
+        - 浏览器，接收到内容后，根据服务器给定 压缩算法 进行解压，然后呈现内容
+        - **好处**： 减少了 HTTP 的传输量，这个在我们做**性能优化**的时候 是非常有用的
+    - 下面，我们来实现一下 这种压缩方式
+
+1:40
