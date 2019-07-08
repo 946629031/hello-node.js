@@ -2041,5 +2041,161 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 浏览器，接收到内容后，根据服务器给定 压缩算法 进行解压，然后呈现内容
         - **好处**： 减少了 HTTP 的传输量，这个在我们做**性能优化**的时候 是非常有用的
     - 下面，我们来实现一下 这种压缩方式
+    ```js
+    // compress.js
+    const {createGzip, createDeflate} = require('zlib');
 
-1:40
+    module.exports = (rs, req, res) => {    // rs: 要被压缩的readStream, rq: 请求参数, res: respond
+        const acceptEncoding = req.headers['accept-encoding'];    // 获取浏览器支持的压缩方式
+
+        // 如果没有 acceptEncoding 或者 acceptEncoding 是服务器不支持的类型(这里只支持 gzip 和 deflate)
+        if (!acceptEncoding || !acceptEncoding.match(/\b(gzip|deflate)\b/)) {
+            return rs;
+        } else if (acceptEncoding.match(/\bgzip\b/)){   // 优先使用 gzip，因为 gzip 压缩效果比较好
+            res.setHeader('Content-Encoding', 'gzip');
+            return rs.pipe(createGzip());   // 这样子就能把处理好的流 返回给我们
+        } else if (acceptEncoding.match(/\bdeflate\b/)){
+            res.setHeader('Content-Encoding', 'deflate');
+            return rs.pipe(createDeflate());
+        }
+    }
+    ```
+    ```js
+    // defaultConfig.js
+    module.exports = {
+        root: process.cwd(),
+        hostname: '127.0.0.1',
+        port: 9527,
+        compress: /\.(html|js|css|md)/,      // 压缩文件的类型
+    }
+    ```
+    ```js
+    const http = require('http');
+    const path = require('path');
+    const fs = require('fs');
+    const handlebars = require('handlebars');
+    const promisify = require('util').promisify;
+    const stat = promisify(fs.stat);
+    const readdir = promisify(fs.readdir);
+    const mime = require('./mime');
+    const compress = require('./compress');
+
+    const config = require('./defaultConfig');
+    const tplPath = path.join(__dirname, './template.html');
+    const source = fs.readFileSync(tplPath);
+    const template = handlebars.compile(source.toString());
+
+    const server = http.createServer((req, res) => {
+        const filePath = path.join(config.root, req.url);
+        console.log('filePath', req.url)
+        handle(req, res, filePath);
+    });
+
+    server.listen(config.port, config.hostname, ()=>{
+        console.log(`Server is running ai http://${config.hostname}:${config.port}`);
+    })
+
+    async function handle (req, res, filePath) {
+        try {
+            const stats = await stat(filePath);
+
+            if(stats.isFile()){
+                res.statusCode = 200;
+                res.setHeader('Content-Type', mime(filePath));
+
+                // fs.createReadStream(filePath).pipe(res);     // 没压缩时是这样写的
+                let rs = fs.createReadStream(filePath);
+                if(filePath.match(config.comperss)){            // 如何匹配文件类型，就 调用压缩方法
+                    rs = compress(rs, req, res);
+                }
+                rs.pipe(res);
+
+            }else if(stats.isDirectory()){
+                const files = await readdir(filePath);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                // res.end(files.join());
+
+                const dir = path.relative(config.root, filePath);
+                console.log('root',config.root);
+                console.log('filePath',filePath);
+                console.log('dir', typeof(dir), dir);
+                data = {
+                    title: path.basename(filePath),
+                    dir: dir ? `/${dir}` : '',
+                    files: files.map(file => {
+                        return {
+                            file,
+                            type: mime(file)
+                        }
+                    })
+                };
+                res.end(template(data));
+            }
+        } catch (err) {
+            // console.log(err);
+
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`${filePath} is not a directory or file \n ${err}`);
+            throw err;
+        }
+    }
+    ```
+    ```html
+    // template.html
+
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+        <title>{{title}}</title>
+    </head>
+    <body>
+        <ul>
+            {{#each files}}
+            <li><a href="{{../dir}}/{{file}}">【{{type}}】{{file}}</a></li>
+            {{/each}}
+        </ul>
+        
+    </body>
+    </html>
+    ```
+    ```js
+    // mime.js
+    const path = require('path');
+
+    const mimeTypes = {
+        'css': 'text/css',
+        'gif': 'image/gif',
+        'html': 'text/html',
+        'ico': 'image/x-icon',
+        'jpeg': 'image/jpeg',
+        'jpg': 'image/jpeg',
+        'js': 'text/javascript',
+        'json': 'application/json',
+        'pdf': 'application/pdf',
+        'png': 'image/png',
+        'svg': 'image/svg+xml',
+        'swf': 'application/x-shockwave-flash',
+        'tiff': 'image/tiff',
+        'txt': 'text/plain',
+        'wav': 'audio/x-wav',
+        'wma': 'audio/x-ms-wma',
+        'wmv': 'audio/x-ms-wmv',
+        'xml': 'text/xml',
+    }
+
+    module.exports = (filePath) => {
+        let ext = path.extname(filePath).split('.').pop().toLowerCase();
+
+        if(!ext){
+            ext = filePath;
+        }
+        return mimeTypes[ext] || mimeTypes['txt'];
+    }
+    ```
+    - 这时候，可以运行服务，然后点开浏览器，查看里面 Content-Encoding 和 Accept-Encoding，然后 **对照前后压缩效果**，快去试试吧 ^.^ ~
+
