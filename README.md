@@ -2070,6 +2070,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     }
     ```
     ```js
+    // 6-8.js
     const http = require('http');
     const path = require('path');
     const fs = require('fs');
@@ -2206,5 +2207,191 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - 表示，当我们的客户端向服务器**发起请求，可以声明我请求的内容范围**，比如说 “是请求多少个字节 到 多少个字节”，而不是要求 一次性的要把所有的内容都拿回来，
         - 服务器得到了响应的请求之后，去读取到对应的文件，再读取到 对应的字节，就可以返回给客户端了。
     - 如何实现 range？ 只需三步
+        - 1.在请求时候，```Request Headers``` 里面放一个 ```range``` 字段，用来声明我想要的范围。
+            - ```range : bytes = [start]-[end]``` 从多少到多少
+            - 也可以用逗号分隔，请求多个范围
+            - 当然，如果请求的范围是不对的，比如说 start 是从 -10 开始，或者 end 超出了最大长度，或者 start 比 end 还大。
+                - 这种情况下，服务器可以直接返回 200，然后把所有内容返回客户端
+                - 也可以 返回 Status Code : 416，表示你请求的内容我不认识。因为 http 状态码中，4 开头的都是表示客户端错误
+        - 2.在响应中，要加一个响应头 ```Response Headers``` ```Accept-Ranges:bytes```，表示说 我服务器可以处理的格式 为 bytes 字节
+        - 3.在 ```Response Headers``` 中返回一个 ```Content-Range:bytes start-end/total```
+            - 意思是 我返回给你的是字节，目前是从多少开始 到 多少结束，而且总量是多少
+            - 也可以加个 ```Content-Length```，表示这次给了你的长度一共有多少
+    ```js
+    // 6-9.range.js
+    module.exports = (totalSize, req, res) => {
+        const range = req.headers['range'];
+        if (!range){    // 如果拿不到 range
+            return {code: 200};   // 表示处理不了，直接返回 200，正常的返回就好了。
+        }
+
+        const sizes = range.match(/bytes=(\d*)-(\d*)/);   // * 号表示 重复零次或多次，可以有 也可以没有
+        // 用 match 如果匹配到的话，会返回长度为3 的数组，第一个表示匹配到的内容，第二个表示 第一个 \d* , 第三个表示 第二个 \d*
+        const end = sizes[2] || totalSize - 1;
+        const start = sizes[1] || totalSize - end;
+
+        // 接下来我们要判断一些非法条件
+        if (start > end || start < 0 || end > totalSize){
+            return {code: 200};
+        }
+
+        // 下面是可以处理时，返回的结果
+        res.setHeader('Accept-Ranges', 'bytes');
+        res.setHeader('Content-Ranges', `bytes ${start}-${end}/${totalSize}`);
+        res.setHeader('Content-length', end - start);
+        return {
+            code: 206,   // partial content 表示部分内容
+            start: parseInt(start),
+            end: parseInt(end)
+        };
+    }
+    ```
+    - 下面，我们回到上一节中的 6-8.js ，改写里面的代码
+    ```js
+    // 6-9.js
+    const http = require('http');
+    const path = require('path');
+    const fs = require('fs');
+    const handlebars = require('handlebars');
+    const promisify = require('util').promisify;
+    const stat = promisify(fs.stat);
+    const readdir = promisify(fs.readdir);
+    const mime = require('./mime');
+    const compress = require('./compress');
+    const range = require('./range');       // 第一步，引入 range
+
+    const config = require('./defaultConfig');
+    const tplPath = path.join(__dirname, './template.html');
+    const source = fs.readFileSync(tplPath);
+    const template = handlebars.compile(source.toString());
+
+    const server = http.createServer((req, res) => {
+        const filePath = path.join(config.root, req.url);
+        console.log('filePath', req.url)
+        handle(req, res, filePath);
+    });
+
+    server.listen(config.port, config.hostname, ()=>{
+        console.log(`Server is running ai http://${config.hostname}:${config.port}`);
+    })
+
+    async function handle (req, res, filePath) {
+        try {
+            const stats = await stat(filePath);
+
+            if(stats.isFile()){
+                res.setHeader('Content-Type', mime(filePath));
+
+                // fs.createReadStream(filePath).pipe(res);     // 没压缩时是这样写的
+                
+                // 6-8.js 原来的写法
+                // let rs = fs.createReadStream(filePath);
+                // if(filePath.match(config.comperss)){            // 如果匹配文件类型，就 调用压缩方法
+                //     rs = compress(rs, req, res);
+                // }
+                // rs.pipe(res);
+
+                // 现在使用 range 的写法，思路：改写成 读一部分，然后返回一部分的方法
+                let rs;
+                const {code, start, end} = range(stats.size, req, res);  // totalSize, req ,res
+                if (code === 200){  // 如果 range 处理不了
+                    res.statusCode = 200;
+                    rs = fs.createReadStream(filePath);
+                } else {    // 如果 range 能处理
+                    res.statusCode = 206;
+                    rs = fs.createReadStream(filePath, {start, end});  // 传入filePath, 从多少开始读，读到多少结束
+                }
+                if(filePath.match(config.comperss)){            // 下面还是走压缩的流程。如果匹配文件类型，就 调用压缩方法
+                    rs = compress(rs, req, res);
+                }
+                rs.pipe(res);
+
+            }else if(stats.isDirectory()){
+                const files = await readdir(filePath);
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                // res.end(files.join());
+
+                const dir = path.relative(config.root, filePath);
+                console.log('root',config.root);
+                console.log('filePath',filePath);
+                console.log('dir', typeof(dir), dir);
+                data = {
+                    title: path.basename(filePath),
+                    dir: dir ? `/${dir}` : '',
+                    files: files.map(file => {
+                        return {
+                            file,
+                            type: mime(file)
+                        }
+                    })
+                };
+                res.end(template(data));
+            }
+        } catch (err) {
+            // console.log(err);
+
+            res.statusCode = 404;
+            res.setHeader('Content-Type', 'text/plain');
+            res.end(`${filePath} is not a directory or file \n ${err}`);
+            throw err;
+        }
+    }
+    ```
+    - 做完上面操作之后，可以使用 CURL 工具来分析一下
+        - CURL 在平时分析网络的时候 还是挺好用的
+        - 安装 CURL ```npm i curl -g```
+        - 命令行输入 ```CURL http://127.0.0.1:9527/LINCENE``` , 意思是使用 CURL 分析访问 本地服务器的 LINCENE 文件的情况
+            - ```CURL http://127.0.0.1:9527/LINCENE``` 是会拿到全量的内容
+        - ```curl -I http://127.0.0.1:9527/app.js``` 只看 header
+            - 返回
+            ```
+            TP/1.1 200 OK
+            Content-Type: text/javascript
+            Date: Tue, 09 Jul 2019 03:49:14 GMT
+            Connection: keep-alive
+            ```
+        - ```curl -i http://127.0.0.1:9527/app.js``` 会把内容 和 header 都拿到
+            - 返回
+            ```
+            TP/1.1 200 OK
+            Content-Type: text/javascript
+            Date: Tue, 09 Jul 2019 03:51:01 GMT
+            Connection: keep-alive
+            Transfer-Encoding: chunked
+
+            const http = require('http')
+
+            const hostname = '127.0.0.1';
+            const port = 9563;
+
+            const server = http.createServer((req, res) => {
+                res.statusCode = 200;
+                res.setHeader('Content-Type', 'text/html');
+                res.write('<html>')
+                res.write('<h1>Hello World !</h1>');
+                res.end('<html>')
+            });
+
+            server.listen(port, hostname, () => {
+                console.log(`Server running at http://${hostname}:${port}/`)
+            })
+            ```
+        - **指定 range**,
+            - ```curl -r 0-10 -i http://127.0.0.1:9527/app.js``` 指定 range 范围为 0-10
+            - 返回
+            ```
+            TP/1.1 200 OK
+            Content-Type: text/javascript
+            Accept-Ranges: bytes
+            Content-Ranges: bytes 0-10/415
+            Content-length: 10
+            Date: Tue, 09 Jul 2019 03:56:48 GMT
+            Connection: keep-alive
+
+            const http
+            ```
+        - 到这里，我们就能拿到一个文件的 **部分内容** 了
+
 
 00：26
