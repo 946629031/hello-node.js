@@ -2398,7 +2398,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
     - 在我们之前写的代码中，浏览器发起一个请求，请求到了服务器，服务器解析出来响应结果，然后把响应发回给浏览器
     - 但是 了解 http 的同学可能知道，http 协议中工作的时候会更加智能一些，尤其是针对静态资源的情况下，会极大程度的利用缓存
     - #### **缓存是什么？它是哪来的呢？它又是怎么工作的呢？**
-        ![http-cache](https://github.com/946629031/hello-node.js/blob/master/img/2.http-cache.jpg)
+        <!-- ![http-cache](https://github.com/946629031/hello-node.js/blob/master/img/2.http-cache.jpg) -->
         - 1.第一次访问 / 请求
             - 1.用户发起请求
             - 2.浏览器会检查本地是否存在缓存
@@ -2460,8 +2460,30 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 除了用时间，我们还可以用这一对值，生成 Hash 值 (或者其它的类似的值，只要文件改变，该值就改变 的这种原理)
             - 服务器在每次 ```Response Headers``` 里面都会放 ```Etag```, 告诉你我最新的值
             - 每次客户端发送请求，都会在 ```Request Headers``` 里问 ```If-None-Match``` 是否匹配
-        - **总结**
+        - **注意**
             - ```If-Modified-Since / Last-Modified``` 和 ```If-None-Match / Etag``` 这个选一个使用即可，因为他们产生的作用是一样的
+    - 代码
+        ```js
+        // 6-10.defaultConfig.js
+        module.exports = {
+            root: process.cwd(),
+            hostname: '127.0.0.1',
+            port: 9527,
+            compress: /\.(html|js|css|md)/,
+            cache: {
+                maxAge: 600,   // 缓存有效时间。这里的意思是 缓存在600秒内有效
+                expires: true, // 是否支持 expires 。一般情况下都不支持，现在只是为了测试
+                cacheControl: true,
+                lastModified: true,
+                etag: true
+            }
+        }
+        ```
 
+test2/cache.js
+test2/static_server.js
 
-5:24
+ UnhandledPromiseRejectionWarning: TypeError: The header content contains invalid characters
+报错
+
+17:31
