@@ -2457,12 +2457,26 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 服务器拿到这个时间后一看，上次我给你的是下午3点，你现在来请求还是下午3点，嗯，没改过，你就用你本地缓存就好了
             - 如果改过的话，我就再给你一个最新的 ```Last-Modified```
         - ```If-None-Match / Etag```
-            - 除了用时间，我们还可以用这一对值，生成 Hash 值 (或者其它的类似的值，只要文件改变，该值就改变 的这种原理)
+            - 除了用修改时间 ```If-Modified-Since / Last-Modified```，我们还可以用这一对值，生成 Hash 值 (或者其它的类似的值，只要文件改变，该值就改变 的这种原理)
             - 服务器在每次 ```Response Headers``` 里面都会放 ```Etag```, 告诉你我最新的值
             - 每次客户端发送请求，都会在 ```Request Headers``` 里问 ```If-None-Match``` 是否匹配
         - **注意**
             - ```If-Modified-Since / Last-Modified``` 和 ```If-None-Match / Etag``` 这个选一个使用即可，因为他们产生的作用是一样的
     - 代码
+        ```
+        项目目录
+        + |- /node_modules
+        + |- /static
+            |- template.html
+        + |- /function
+            |- cache.js
+            |- compress.js
+            |- defaultConfig.js
+            |- mime.js
+            |- range.js
+        |- app.js
+        |- package.json 
+        ```
         ```js
         // 6-10.defaultConfig.js
         module.exports = {
@@ -2479,11 +2493,347 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             }
         }
         ```
+        ```js
+        // function/cache.js
+        const {cache} = require('./defaultConfig');
 
-test2/cache.js
-test2/static_server.js
+        function refreshRes(stats, res) {
+            const {maxAge, expires, cacheControl, lastModified, etag} = cache;
 
- UnhandledPromiseRejectionWarning: TypeError: The header content contains invalid characters
-报错
+            if (expires) {          // 如果支持expires
+                res.setHeader('Expires', (new Date(Date.now() + maxAge * 1000)).toUTCString());
+                // 获取现在的时间 + 缓存有效期时间 (*1000 转为毫秒)，最后转成 UTC 时间
+            }
 
-17:31
+            if (cacheControl) {     // 如果支持 cacheControl
+                res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
+                // public 表示静态资源是共用的，再告诉你 max-age 缓存有效期是多少
+            }
+
+            if (lastModified) {
+                res.setHeader('Last-Modified', stats.mtime.toUTCString());
+                // 文件的上次修改时间，在 stats.mtime 可以取得。然后转 UTC 时间字符串
+            }
+
+            if (etag) {
+                res.setHeader('ETag', `${stats.size}-${stats.mtime.toUTCString()}`);
+                // 大小 - 修改时间
+            }
+        }
+
+        module.exports = function isFresh(stats, req, res) {
+            refreshRes(stats, res);
+
+            // 下面来读一下浏览器发来的信息
+            const lastModified = req.headers['if-modified-since'];
+            const etag = req.headers['if-none-match'];
+
+            // 如果客户端 这两个信息都没有给我们，就说明 很有可能是第一次请求
+            if (!lastModified && !etag) {
+                return false;
+            }
+
+            // 如果客户端给了我们 lastModified，并且跟我们 refreshRes() 设置的 lastModified 不一样，那就说明了 缓存失效了
+            if (lastModified && lastModified !== res.getHeader('Last-Modified')) {
+                return false;
+            }
+            
+            // 如果 客户端给我们的 etag 也跟我们设置 etag 的不一样，说明 缓存失效了
+            if (etag && etag !== res.getHeader('ETag')) {
+                return false;
+            }
+
+            return true;    // 如果上面的 if 都不满足，则说明 缓存还是ok的，还在缓存有效期内
+        }
+        ```
+        ```js
+        // app.js
+        const http = require('http');
+        const path = require('path');
+        const fs = require('fs');
+        const handlebars = require('handlebars');
+        const promisify = require('util').promisify;
+        const stat = promisify(fs.stat);
+        const readdir = promisify(fs.readdir);
+        const mime = require('./function/mime');
+        const compress = require('./function/compress');
+        const range = require('./function/range');
+
+        const config = require('./function/defaultConfig');
+        const isFresh = require('./function/cache');     // 引入 isFresh 方法
+        const tplPath = path.join(__dirname, './static/template.html');
+        const source = fs.readFileSync(tplPath);
+        const template = handlebars.compile(source.toString());
+
+        const server = http.createServer((req, res) => {
+            const filePath = path.join(config.root, req.url);
+            // console.log('filePath',filePath);
+            // const filePath = path.resolve(config.root, req.url);
+            handle(req, res, filePath).catch(error=>console.log(error.message));
+        });
+
+        server.listen(config.port, config.hostname, ()=>{
+            console.log(`Server is running at http://${config.hostname}:${config.port}`);
+        })
+
+        async function handle (req, res, filePath) {
+            try {
+                const stats = await stat(filePath);
+
+                if(stats.isFile()){
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', mime(filePath));
+
+                    // 在返回 200 前，拦截一下
+                    let time444 = isFresh(stats, req, res);
+                    if (isFresh(stats, req, res)) {
+                        // 如果缓存是有效的
+                        res.statusCode = 304;
+                        res.end();      // 不返回内容了
+                        return
+                    }
+
+                    // fs.createReadStream(filePath).pipe(res);     // 没压缩时是这样写的
+                        
+                    // 6-8.js 原来的写法
+                    // let rs = fs.createReadStream(filePath);
+                    // if(filePath.match(config.comperss)){            // 如果匹配文件类型，就 调用压缩方法
+                    //     rs = compress(rs, req, res);
+                    // }
+                    // rs.pipe(res);
+
+                    // 现在使用 range 的写法，思路：改写成 读一部分，然后返回一部分的方法
+                    let rs;
+                    const {code, start, end} = range(stats.size, req, res);  // totalSize, req ,res
+                    if (code === 200){  // 如果 range 处理不了
+                        rs = fs.createReadStream(filePath);
+                    } else {    // 如果 range 能处理
+                        rs = fs.createReadStream(filePath, {start, end});  // 传入filePath, 从多少开始读，读到多少结束
+                    }
+                    if(filePath.match(config.comperss)){            // 下面还是走压缩的流程。如果匹配文件类型，就 调用压缩方法
+                        rs = compress(rs, req, res);
+                    }
+                    rs.pipe(res);
+
+                }else if(stats.isDirectory()){
+                    const files = await readdir(filePath);
+                    res.statusCode = 200;
+                    res.setHeader('Content-Type', 'text/html');
+                    // res.end(files.join());
+
+                    const dir = path.relative(config.root, filePath);
+                    data = {
+                        title: path.basename(filePath),
+                        dir: dir ? `/${dir}` : '',
+                        files: files.map(file => {
+                            return {
+                                file,
+                                type: mime(file)
+                            }
+                        })
+                    };
+                    res.end(template(data));
+                }
+            } catch (err) {
+                // console.log('filePath', filePath);
+
+                res.statusCode = 404;
+                res.setHeader('Content-Type', 'text/plain');
+                res.end(`${filePath} is not a directory or file \n ${err}`);
+                throw err;
+            }
+        }
+        ```
+        ```js
+        // funciton/compress.js
+        const {createGzip, createDeflate} = require('zlib');
+
+        module.exports = (rs, req, res) => {    // rs: 要被压缩的readStream, rq: 请求参数, res: respond
+            const acceptEncoding = req.headers['accept-encoding'];    // 获取浏览器支持的压缩方式
+
+            // 如果没有 acceptEncoding 或者 acceptEncoding 是服务器不支持的类型(这里只支持 gzip 和 deflate)
+            if (!acceptEncoding || !acceptEncoding.match(/\b(gzip|deflate)\b/)) {
+                return rs;
+            } else if (acceptEncoding.match(/\bgzip\b/)){   // 优先使用 gzip，因为 gzip 压缩效果比较好
+                res.setHeader('Content-Encoding', 'gzip');
+                return rs.pipe(createGzip());   // 这样子就能把处理好的流 返回给我们
+            } else if (acceptEncoding.match(/\bdeflate\b/)){
+                res.setHeader('Content-Encoding', 'deflate');
+                return rs.pipe(createDeflate());
+            }
+        }
+        ```
+        ```js
+        // function/mime.js
+        const path = require('path');
+
+        const mimeTypes = {
+            'css': 'text/css',
+            'gif': 'image/gif',
+            'html': 'text/html',
+            'ico': 'image/x-icon',
+            'jpeg': 'image/jpeg',
+            'jpg': 'image/jpeg',
+            'js': 'text/javascript',
+            'json': 'application/json',
+            'pdf': 'application/pdf',
+            'png': 'image/png',
+            'svg': 'image/svg+xml',
+            'swf': 'application/x-shockwave-flash',
+            'tiff': 'image/tiff',
+            'txt': 'text/plain',
+            'wav': 'audio/x-wav',
+            'wma': 'audio/x-ms-wma',
+            'wmv': 'audio/x-ms-wmv',
+            'xml': 'text/xml',
+        }
+
+        module.exports = (filePath) => {
+            let ext = path.extname(filePath).split('.').pop().toLowerCase();
+
+            if(!ext){
+                ext = filePath;
+            }
+            return mimeTypes[ext] || mimeTypes['txt'];
+        }
+        ```
+        ```js
+        // function/range.js
+        module.exports = (totalSize, req, res) => {
+            const range = req.headers['range'];
+            if (!range){    // 如果拿不到 range
+                return {code: 200};   // 表示处理不了，直接返回 200，正常的返回就好了。
+            }
+
+            const sizes = range.match(/bytes=(\d*)-(\d*)/);   // * 号表示 重复零次或多次，可以有 也可以没有
+            // 用 match 如果匹配到的话，会返回长度为3 的数组，第一个表示匹配到的内容，第二个表示 第一个 \d* , 第三个表示 第二个 \d*
+            const end = sizes[2] || totalSize - 1;
+            const start = sizes[1] || totalSize - end;
+
+            // 接下来我们要判断一些非法条件
+            if (start > end || start < 0 || end > totalSize){
+                return {code: 200};
+            }
+
+            // 下面是可以处理时，返回的结果
+            res.setHeader('Accept-Ranges', 'bytes');
+            res.setHeader('Content-Ranges', `bytes ${start}-${end}/${totalSize}`);
+            res.setHeader('Content-length', end - start);
+            return {
+                code: 206,   // part of content 表示部分内容
+                start: parseInt(start),
+                end: parseInt(end)
+            };
+        }
+        ```
+        ```html
+        // static/template.html
+
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <meta http-equiv="X-UA-Compatible" content="ie=edge">
+            <title>{{title}}</title>
+        </head>
+        <body>
+            <ul>
+                {{#each files}}
+                <li><a href="{{../dir}}/{{file}}">【{{type}}】{{file}}</a></li>
+                {{/each}}
+            </ul>
+            
+        </body>
+        </html>
+        ```
+
+
+- 验证 304 是否成功
+    - 第一次在浏览器里输入网页地址，如：http://127.0.0.1:9527/function/compress.js
+    - 然后，第二次，在浏览器输入网址的地方，敲回车
+        - 这时候，在浏览器 控制台 - Network 里面，就能看到该文件为 304 Not Modified
+    - 或者刷新操作也可以 出现 304
+
+- ### 6-11 将 静态资源服务器工具 做成 CLI工具 (命令行工具)
+- 需求
+    - 就像 anywhere 一样，在命令行上敲 anywhere ，然后帮我们打开一个网页，就是当前文件夹。
+    - 也可以写一些参数，来做自定义的配置
+- 我们在上面 [6-10 http 缓存](#6-10-http-缓存) 的项目基础上改进
+    ```
+    项目目录
+    |- /node_modules
+    |- /static
+        |- template.html
+    |- /function
+        |- cache.js
+        |- compress.js
+        |- defaultConfig.js
+        |- mime.js
+        |- range.js
+    |- app.js
+    |- package.json
+    + |- README.md
+    + |- index.js
+    ```
+    ```markdown
+    // README.md
+    # anydor
+
+    Tiny NodeJS Static Web Server
+
+    ## 安装
+    ``
+    npm i - g anydoor
+    ``
+
+    ## 使用方法
+    ``
+    anydoor # 把当前文件夹作为静态资源服务器根目录
+
+    anydoor -p 8080 # 设置端口号为 8080
+
+    anydoor -h localhost # 设置 host 为 localhost
+
+    anydoor -d /usr # 设置根目录为 /usr
+    ``
+    ```
+- 问题
+    - 我们怎么才能读到命令行中 ```-p 8080``` 或者 ```--port 8080``` 这些参数呢
+    - ```process.argv``` 可以读到 命令行上的参数列表
+        - 但这种写法是比较麻烦的，如：需要我们分析 -p 和 --port 是同一个指令，之类的，会比较麻烦
+    - 现成的工具
+        - commander
+        - [yargs](https://www.npmjs.com/package/yargs)
+- yargs 使用
+    - 安装 ```npm i yargs```
+    - 使用
+    ```js
+    // index.js
+    const yargs = require('yargs');
+
+    const argv = yargs
+        .usage('anywhere [options]')    // 用一句话告诉大家怎么用
+        .option('p', {
+            alias: 'port',  // 别名。这里会默认，以后生成的变量就是 port, 这里跟 defaultConfig.js 里保持一致即可
+            describe: '端口号',
+            default: 9527
+        })
+        .option('h', {
+            alias: 'hostname',
+            describe: 'host',
+            default: '127.0.0.1'
+        })
+        .option('d', {
+            alias: 'root',  // 跟 defaultConfig.js 里保持一致即可
+            describe: 'root path',
+            default: process.cwd()
+        })
+        .version()
+        .alias('v', 'version')
+        .help()  // 根据我们上面写的 option 自动生成 help 信息
+        .argv;
+    ```
+
+
+7:30
