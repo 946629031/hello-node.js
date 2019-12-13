@@ -30,7 +30,7 @@ Node.js 各种语法 入门讲解
     - [4-3 Buffer](#4-3-buffer)
     - [4-6 Event 事件](#4-6-event-事件)
     - [4-8 fs 文件系统](#4-8-fs-文件系统)
-- [第5章 项目初始化]()
+- [第5章 项目初始化](#第5章-项目初始化)
     - [5-1 .gitignore .npmignore .EditorConfig](#5-1-gitignore)
     - [5-2 ESLint](#5-2-eslint)
 - [第6章 静态资源服务器](#第6章-静态资源服务器)
