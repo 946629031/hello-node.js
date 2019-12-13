@@ -1037,7 +1037,20 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('成功删除 /tmp/hello')
         })
         ```
-    - 1.fs.readFile() 读文件
+    - fileSystem 接口目录
+        - [1.fs.readFile() 读文件](#1.fs.readFile()-读文件)
+        - [2.fs.writeFile() 写文件](#2.fs.writeFile()-写文件)
+        - [3.fs.stat() 文件信息](#3.fs.stat()-文件信息)
+        - [4.fs.rename() 重命名](#4.fs.rename()-重命名)
+        - [5.fs.unlink() 删除文件](#5.fs.unlink()-删除文件)
+        - [6.fs.readdir() 读取文件目录](#6.fs.readdir()-读取文件目录)
+        - [7.fs.mkdir() 创建目录](#7.fs.mkdir()-创建目录)
+        - [8.fs.rmdir() 删除文件夹](#8.fs.rmdir()-删除文件夹)
+        - [9.fs.watch() 监听](#9.fs.watch()-监听)
+        - [10.fs.readStream()](#10.fs.readStream())
+        - [11.fs.writeStream()](#11.fs.writeStream())
+        - [12.解决地狱回调的问题](#12.解决地狱回调的问题)
+    - #### 1.fs.readFile() 读文件
         - ```fs.readFile()``` 是异步读取
             ```js
             const fs = require('fs')
@@ -1067,7 +1080,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             - 而 如果是使用 ```fs.readFile()``` 这种异步方式，主进程接到读文件的命令后，就会交给系统底层 I/O 去执行，执行完了才告诉主进程，这种方式 **不会阻塞主进程** ，能够响应N个用户的请求
             - 所以，**能用异步就尽量用异步**，因为异步是node推荐的方式
 
-    - 2.fs.writeFile() 写文件
+    - #### 2.fs.writeFile() 写文件
         ```js
         const fs = require('fs')
 
@@ -1092,7 +1105,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
                 console.log('写入成功')
             })
             ```
-    3. fs.stat() 文件信息
+    - #### 3.fs.stat() 文件信息
         ```js
         const fs = require('fs')
 
@@ -1111,7 +1124,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         ```
         - 不建议在调用 fs.open()、 fs.readFile() 或 fs.writeFile() 之前使用 fs.stat() 检查文件是否存在。 而是应该直接打开、读取或写入文件，如果文件不可用则处理引发的错误。
         - 要检查文件是否存在但随后并不对其进行操作，则建议使用 fs.access()。
-    - 4.fs.rename() 重命名
+    - #### 4.fs.rename() 重命名
         ```js
         const fs = require('fs')
 
@@ -1121,7 +1134,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('重命名成功')
         })
         ```
-    - 5.fs.unlink() 删除文件
+    - #### 5.fs.unlink() 删除文件
         ```js
         const fs = require('fs')
 
@@ -1130,7 +1143,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('删除成功')
         })
         ```
-    - 6.fs.readdir() 读取文件目录
+    - #### 6.fs.readdir() 读取文件目录
         ```js
         const fs = require('fs')
 
@@ -1140,7 +1153,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log(files)
         })
         ```
-    - 7.fs.mkdir() 创建目录
+    - #### 7.fs.mkdir() 创建目录
         ```js
         const fs = require('fs')
 
@@ -1150,13 +1163,13 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('创建成功')
         })
         ```
-    - 8.fs.rmdir() 删除文件夹
+    - #### 8.fs.rmdir() 删除文件夹
         ```js
         const fs = require('fs')
 
         fs.rmdir('./test', err => {})
         ```
-    - 9.fs.watch() 监听
+    - #### 9.fs.watch() 监听
         - ```fs.watch()``` 是监听目录，```fs.watchFile()``` 是监听某一个文件
         - 这个 watch 就是 webpack 里面的 watch，用于监听某目录下的文件是否有改动 (增删改)，经常**被用于做本地构建**
         ```js
@@ -1167,7 +1180,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log(eventType, filename)
         })
         ```
-    - 10.fs.readStream() 
+    - #### 10.fs.readStream() 
         - 什么是 Stream ？
             - 我们一般翻译成 "流"
             - Stream 是有方向的数据。
@@ -1188,7 +1201,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         rs.pipe(process.stdout)     // process.stdout 输出到控制台, 也就是命令行里
         // 方向。所有的 stream 都有 pipe() 方法，意思是往谁里面倒
         ```
-    - 11.fs.writeStream()
+    - #### 11.fs.writeStream()
         - writeStream() 也不是我放在内存中，一次性都给你了；而是，我生产一点，就写给你一点
         ```js
         const fs = require('fs')
@@ -1211,7 +1224,7 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
             console.log('写完了')
         })
         ```
-    - 12.解决地狱回调的问题
+    - #### 12.解决地狱回调的问题
         - 在上面，我的写的逻辑都很简单，只是一个异步操作而已。
         - 在复杂场景里面，都是一个异步里面，调另外一个异步，然后再调另外一个异步... 无限调异步下去，就形成了 **回调地狱**。代码可读性非常差，如：
             ```js
