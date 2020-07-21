@@ -447,30 +447,63 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
         - Process Events - 进程事件
             - uncaughtException
                 - 在我们程序执行的时候，有的异常没有被捕获，这样的话有可能 **打断整个进程**，为了防止这种情况，我们可以在 Process 下面 **加最后一层保险。当异常被抛到最外层的时候，我们来捕获一下**，让 Process 可以优雅的退出
-        - 参数相关
-            - argv, argv0, execArgv, execPath
-                - **其中包含当启动 Node.js 进程时，传入的命令行参数**
-                - **总结**：
-                    - 这四个参数，大多数情况下，我们只需要用 ```process.argv``` 就足够了，因为 ```process.argv``` 包含了其他三个
+        - `process.argv` 参数相关
+            > argv, argv0, execArgv, execPath <br><br>
+            > **上面4个 可以读取启动 Node.js 进程时，传入的命令行参数**
+
+            <br>
+
+            > **总结**：<br>
+            > 这四个参数，大多数情况下，我们只需要用 ```process.argv``` 就足够了，因为 ```process.argv``` 包含了其他三个
+
+            ```js
+            // 10-process.js
+
+            const {argv, argv0, execArgv, execPath} = process; // 这四个对象 都是 process 的子对象
+            ```
+            - ```process.argv``` **包含当启动 Node.js 进程时，传入的命令行参数**
                 ```js
-                // 10-process.js
-                const {argv, argv0, execArgv, execPath} = process;
-                // 这四个对象 都是 process 的子对象
+                // 10-process-argv.js
+
+                process.argv.forEach(item => {
+                    console.log(item)
+                })
                 ```
-                - ```process.argv``` **包含当启动 Node.js 进程时，传入的命令行参数**
-                    ```js
-                    // 10-process-argv.js
-                    process.argv.forEach(item => {
-                        console.log(item)
-                    })
-                    ```
-                    - 执行 ```node 10-process-argv.js```
-                    ```js
-                    /usr/local/bin/node     // 表示启动进程所用的命令，也是node安装路径
-                    /Users/Samartian/nodejs/demos/10-process-argv.js    // 表示当前执行文件的路径
-                    // 上面两条是固定的
-                    ```
-                    - 当然也可以带自定义参数，如，执行 ```node 10-process-argv.js --test a=1 b=2```
+                ```js
+                当我们在命令行执行上面当js脚本时: ```node 10-process-argv.js```
+
+                会得到下面当结果:
+
+                /usr/local/bin/node     // 表示启动进程所用的命令，也是node安装路径
+                /Users/Samartian/nodejs/demos/10-process-argv.js    // 表示当前执行文件的路径
+
+                // 上面两条是固定的
+                ```
+                ```js
+                当然也可以带自定义参数，如，执行 ```node 10-process-argv.js --test a=1 b=2```
+
+                /usr/local/bin/node
+                /Users/Samartian/nodejs/demos/10-process-argv.js
+
+                --test
+                a=1
+                b=2
+
+                // 命令行传入的其它参数，也都会被打印出来
+                ```
+            - ```process.argv0``` **argv 的第一个参数**
+                - process.argv0 实际上就是 process.argv[0]
+                ```js
+                console.log(process.argv0)
+                ```
+                - 执行该脚本，得到结果如下
+                ```js
+                /usr/local/bin/node
+                ```
+            - ```process.execArgv``` **读取 特殊参数**
+                - 我们发现，在 文件名 和 node 之间写的 参数，是不会进入到 ```argv``` 的，如
+                    - ```node --inspect 10-process-argv.js --test a=1 b=2```
+                    - 打印结果如下
                     ```js
                     /usr/local/bin/node
                     /Users/Samartian/nodejs/demos/10-process-argv.js
@@ -478,57 +511,16 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
                     --test
                     a=1
                     b=2
-                    // 命令行传入的参数都会被打印出来
                     ```
-                - ```process.argv0``` **argv 的第一个参数**
-                    - process.argv0 实际上就是 process.argv[0]
-                    ```js
-                    console.log(process.argv0)
-                    ```
-                    - 执行该脚本，得到结果如下
-                    ```js
-                    /usr/local/bin/node
-                    ```
-                - ```process.execArgv``` **读取 特殊参数**
-                    - 我们发现，在 文件名 和 node 之间写的 参数，是不会进入到 ```argv``` 的，如
-                        - ```node --inspect 10-process-argv.js --test a=1 b=2```
-                        - 打印结果如下
-                        ```js
-                        /usr/local/bin/node
-                        /Users/Samartian/nodejs/demos/10-process-argv.js
-
-                        --test
-                        a=1
-                        b=2
-                        ```
-                    - 但是，我们可以通过 ```process.execArgv``` 的方式来读取，在 文件名 和 node 之间写的 参数
-                        ```js
-                        process.argv.forEach(item => {
-                            console.log(item)
-                        })
-
-                        console.log(process.execArgv)
-                        ```
-                        - 执行```node --inspect 10-process-argv.js --test a=1 b=2```
-                        - 打印结果如下
-                        ```js
-                        /usr/local/bin/node
-                        /Users/Samartian/nodejs/demos/10-process-argv.js
-
-                        --test
-                        a=1
-                        b=2
-
-                        [ '--inspect' ]     // 这是 process.execArgv 读取到的 特殊参数
-                        ```
-                - ```process.execPath``` **读取 可执行程序的路径**
+                - 但是，我们可以通过 ```process.execArgv``` 的方式来读取，在 文件名 和 node 之间写的 参数
                     ```js
                     process.argv.forEach(item => {
                         console.log(item)
                     })
 
-                    console.log(process.execPath)
+                    console.log(process.execArgv)
                     ```
+                    - 执行```node --inspect 10-process-argv.js --test a=1 b=2```
                     - 打印结果如下
                     ```js
                     /usr/local/bin/node
@@ -538,8 +530,27 @@ NodeJs 的开发环境、运行环境、常用 IDE 以及集中常用的调试�
                     a=1
                     b=2
 
-                    /usr/local/bin/node     // 这是 process.execPath 读取到的 可执行程序的路径
+                    [ '--inspect' ]     // 这是 process.execArgv 读取到的 特殊参数
                     ```
+            - ```process.execPath``` **读取 可执行程序的路径** <br>
+                ```js
+                process.argv.forEach(item => {
+                    console.log(item)
+                })
+
+                console.log(process.execPath)
+                ```
+                - 打印结果如下
+                ```js
+                /usr/local/bin/node
+                /Users/Samartian/nodejs/demos/10-process-argv.js
+
+                --test
+                a=1
+                b=2
+
+                /usr/local/bin/node     // 这是 process.execPath 读取到的 可执行程序的路径
+                ```
         - ```process.env``` **返回包含用户环境的对象**
             ```js
             // 10-process-env.js
